@@ -4,6 +4,13 @@
 .env.*
 *.local
 
+# Generated prototype outputs (reproducible via demo.py)
+prototype/out/
+
+# Python
+__pycache__/
+*.pyc
+
 # OS noise
 Thumbs.db
 .DS_Store

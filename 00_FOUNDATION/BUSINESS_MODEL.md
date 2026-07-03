@@ -41,7 +41,7 @@ Estimativas por **assento ativo/mês**, em uso intenso (4–8 reuniões preparad
 | Componente | Estimativa | Premissa |
 |---|---|---|
 | LLM (análises, narrativas, relatórios, parsing) | R$ 45–90 | H2: ~2–4M tokens/assento/mês em Claude (mix Sonnet/modelo maior), com cache de contexto |
-| Agregador Open Finance (por conta conectada) | R$ 20–45 | H3: R$ 1–3/conexão/mês × 15–30 clientes finais por assento — **maior incerteza de custo; negociar contrato com trava de volume** |
+| Agregador Open Finance (por conta conectada) | R$ 20–45 | H3: R$ 1–3/conexão/mês × 15–30 clientes finais por assento — **maior incerteza de custo; negociar contrato com trava de volume**. ⚠️ Spike 2026-07-03 ([SPIKE_001](../02_ARCHITECTURE/spikes/SPIKE_001_DATA_SOURCES.md)): há piso de plataforma (~R$ 2,5–6 mil/mês) além do custo por conexão — entra nos fixos até diluir; contratação adiada para M2 da Fase 1 com negociação startup |
 | Dados de mercado e referência | R$ 5–15 | H4: fontes públicas (CVM, Tesouro, BCB/SGS) + cotações via provedor de baixo custo, amortizado |
 | Infraestrutura (compute, DB, storage, observabilidade) | R$ 8–15 | Serverless/managed, região BR |
 | **COGS total/assento/mês** | **R$ 78–165** | |

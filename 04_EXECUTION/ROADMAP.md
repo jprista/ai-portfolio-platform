@@ -50,8 +50,13 @@ Playbook de venda documentado a partir do que funcionou com os 5 primeiros · on
 3. **Relação com design partners:** quinzenais dele, não meus.
 4. Contratação de jurídico pontual (parecer CVM + contratos) na Fase 0/1 — orçado no BUSINESS_MODEL.
 
-## 6. Acompanhamento
+## 6. Status vivo (atualizado a cada avanço)
 
-Este arquivo ganha uma seção de **status vivo** (tabela semana a semana) quando a Fase 0 começar; desvios de gate são registrados aqui e disparam as revisões previstas na governança dos documentos-mãe.
+| Data | Trilha | Item | Status |
+|---|---|---|---|
+| 2026-07-03 | CTO-IA | Spike de dados: BCB/SGS e Tesouro testados ao vivo ✅; descoberta de piso de custo de agregadores (→ [SPIKE_001](../02_ARCHITECTURE/spikes/SPIKE_001_DATA_SOURCES.md)) | **Feito** (pendências: CVM, cotações B3, parsing de extratos reais, sandbox Pluggy) |
+| 2026-07-03 | CTO-IA | Protótipo v0.1: motor Decimal (Dietz encadeado, alocação, concentração, liquidez, vencimentos), 4 regras de insight, briefing + relatório institucional HTML, runs imutáveis, **17/17 testes dourados** | **Feito** — Python 3.12 instalado na máquina do fundador; demo roda local |
+| 2026-07-03 | Fundador | Lista de 30+ alvos e agendamento das entrevistas | **Aguardando início** |
+| 2026-07-03 | Fundador | Enviar 2–3 extratos reais de posição (podem ser anonimizados) para o teste de parsing e casos dourados reais | **Aguardando** — bloqueia a pendência principal do spike |
 
-**Changelog:** v1.0 (2026-07-03) — versão inicial sob delegação total.
+**Changelog:** v1.0 (2026-07-03) — versão inicial sob delegação total. · v1.1 (2026-07-03) — status vivo inaugurado com entregas do primeiro dia da Fase 0.
