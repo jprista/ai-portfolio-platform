@@ -1,0 +1,10 @@
+# Local settings and secrets — never versioned
+.claude/settings.local.json
+.env
+.env.*
+*.local
+
+# OS noise
+Thumbs.db
+.DS_Store
+desktop.ini
