@@ -50,6 +50,8 @@ Playbook de venda documentado a partir do que funcionou com os 5 primeiros · on
 3. **Relação com design partners:** quinzenais dele, não meus.
 4. Contratação de jurídico pontual (parecer CVM + contratos) na Fase 0/1 — orçado no BUSINESS_MODEL.
 
+> **Realinhamento (2026-07-03, decisão do fundador):** a fase de validação de mercado está **encerrada**. Gates comerciais e tarefas de descoberta deste documento deixam de ser processo ativo e permanecem apenas como registro histórico. Fluxo vigente: escrever documento → revisar → aprovar → implementar. O plano de construção técnica (§3) segue como referência de sequência de engenharia.
+
 ## 6. Status vivo (atualizado a cada avanço)
 
 | Data | Trilha | Item | Status |
