@@ -10,7 +10,7 @@ import json
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-ENGINE_VERSION = "0.1.0-prototype"
+ENGINE_VERSION = "0.2.0-prototype"  # ENGINE_METHODOLOGY v1.1: calendar DU/252, accruals (%CDI, pre, VNA exato), thresholds parametrizáveis, regra %CDI negativo
 
 
 def _canonical(obj) -> str:

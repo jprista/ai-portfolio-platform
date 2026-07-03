@@ -115,6 +115,21 @@ def chained_returns(valuations: list[Valuation], flows: list[Flow]) -> dict:
     return {"periods": periods, "total_return_pct": q_pct((factor - 1) * HUNDRED)}
 
 
+def benchmark_comparison(portfolio_pct: Decimal, benchmark_pct: Decimal) -> dict:
+    """ENGINE_METHODOLOGY §5: '% of benchmark' only when meaningful
+    (portfolio >= 0 and benchmark > 0); otherwise difference in p.p.,
+    explained in the report (founder decision 2026-07-03)."""
+    if portfolio_pct >= 0 and benchmark_pct > 0:
+        return {
+            "mode": "pct_of_benchmark",
+            "value": (portfolio_pct / benchmark_pct * HUNDRED).quantize(Decimal("0.01")),
+        }
+    return {
+        "mode": "pp_difference",
+        "value": (portfolio_pct - benchmark_pct).quantize(Decimal("0.01")),
+    }
+
+
 def accumulate_bcb_series(series: list[dict], start: date, end: date) -> Decimal:
     """Accumulate a BCB/SGS daily percentage series (e.g. CDI) into a period return (%).
 

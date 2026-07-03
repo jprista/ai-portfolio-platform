@@ -61,7 +61,7 @@ def main() -> None:
 
     cdi_total = metrics.accumulate_bcb_series(cdi_raw, valuations[0].day + timedelta(days=1), ref)
     portfolio_total = returns["total_return_pct"]
-    pct_of_cdi = (portfolio_total / cdi_total * Decimal("100")).quantize(Decimal("0.01"))
+    bench_cmp = metrics.benchmark_comparison(portfolio_total, cdi_total)
     risk_alloc = sum(
         (allocation[c]["pct"] for c in ("multimercado", "renda_variavel") if c in allocation),
         Decimal("0"),
@@ -127,7 +127,7 @@ def main() -> None:
             "monthly": monthly,
             "portfolio_total_pct": portfolio_total,
             "cdi_total_pct": cdi_total,
-            "pct_of_cdi": pct_of_cdi,
+            "benchmark_comparison": bench_cmp,
             "risk_assets_alloc_pct": risk_alloc,
         },
     }
@@ -139,7 +139,8 @@ def main() -> None:
 
     print(f"Run do motor      : {run['run_id']} (engine v{run['engine_version']})")
     print(f"Patrimonio total  : {_brl(total)}")
-    print(f"Retorno semestre  : {portfolio_total}%  |  CDI: {cdi_total}%  |  %CDI: {pct_of_cdi}%")
+    bench_label = "%CDI" if bench_cmp["mode"] == "pct_of_benchmark" else "dif. p.p. vs CDI"
+    print(f"Retorno semestre  : {portfolio_total}%  |  CDI: {cdi_total}%  |  {bench_label}: {bench_cmp['value']}")
     print(f"Pontos de atencao : {len(attention)}")
     for i in attention:
         print(f"  - [{i['severity']}] {i['title']}")

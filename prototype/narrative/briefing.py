@@ -43,9 +43,16 @@ def build_briefing(ctx: dict) -> str:
 
     add("## Resumo executivo")
     add("")
+    bench = perf["benchmark_comparison"]
+    if bench["mode"] == "pct_of_benchmark":
+        comparativo = f"(**{_fmt_pct(bench['value'])} do CDI**)"
+    else:
+        # ENGINE_METHODOLOGY §5: retorno negativo não gera "% do CDI"
+        comparativo = (f"(**{_fmt_pct(bench['value'])} pontos percentuais vs. CDI** — em períodos de "
+                       "retorno negativo, o percentual do CDI não é uma medida significativa)")
     add(f"No semestre, a carteira rendeu **{_fmt_pct(perf['portfolio_total_pct'])}**, contra "
-        f"**{_fmt_pct(perf['cdi_total_pct'])}** do CDI no mesmo período "
-        f"(**{_fmt_pct(perf['pct_of_cdi'])} do CDI**). A diferença é explicada principalmente pela "
+        f"**{_fmt_pct(perf['cdi_total_pct'])}** do CDI no mesmo período {comparativo}. "
+        f"A diferença é explicada principalmente pela "
         f"parcela de renda variável e multimercado ({_fmt_pct(perf['risk_assets_alloc_pct'])} da carteira), "
         "cujo objetivo é retorno acima do CDI em horizonte longo — não no semestre. "
         "O ponto estrutural que merece decisão nesta reunião não é performance: são os itens de "

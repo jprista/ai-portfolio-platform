@@ -5,18 +5,30 @@ the narrative layer only phrases what was detected (I1).
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
 from .models import Position
 from . import metrics
 
-ISSUER_CONCENTRATION_LIMIT_PCT = Decimal("15")
-FGC_LIMIT = Decimal("250000")
-MATURITY_WINDOW_DAYS = 90
-# Demo reference medians (production: computed from CVM universe per class)
-FUND_FEE_MEDIAN_PCT = {"multimercado": Decimal("1.50"), "renda_variavel": Decimal("2.00")}
-SOVEREIGN_ISSUERS = {"Tesouro Nacional"}
+
+@dataclass(frozen=True)
+class InsightConfig:
+    """Thresholds are engine PARAMETERS with v1 defaults, never fixed
+    constants (ENGINE_METHODOLOGY §6, founder decision 2026-07-03).
+    Future: populated from OrganizationPolicy (per-office investment policy)."""
+    issuer_concentration_limit_pct: Decimal = Decimal("15")
+    fgc_limit: Decimal = Decimal("250000")
+    maturity_window_days: int = 90
+    # Demo reference medians (production: computed from CVM universe per class)
+    fund_fee_median_pct: dict = field(
+        default_factory=lambda: {"multimercado": Decimal("1.50"), "renda_variavel": Decimal("2.00")}
+    )
+    sovereign_issuers: frozenset = frozenset({"Tesouro Nacional"})
+
+
+DEFAULT_CONFIG = InsightConfig()
 
 
 def _brl(value: Decimal) -> str:
@@ -24,7 +36,10 @@ def _brl(value: Decimal) -> str:
     return "R$ " + s.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
-def generate(positions: list[Position], ref: date) -> list[dict]:
+def generate(
+    positions: list[Position], ref: date, config: InsightConfig | None = None
+) -> list[dict]:
+    cfg = config or DEFAULT_CONFIG
     out: list[dict] = []
     total = metrics.total_value(positions)
 
@@ -38,20 +53,20 @@ def generate(positions: list[Position], ref: date) -> list[dict]:
     for p in credit_positions:
         issuer_credit[p.issuer] = issuer_credit.get(p.issuer, Decimal("0")) + p.value
     for issuer, value in sorted(issuer_credit.items(), key=lambda kv: kv[1], reverse=True):
-        if issuer in SOVEREIGN_ISSUERS:
+        if issuer in cfg.sovereign_issuers:
             continue
         data = {"value": value.quantize(Decimal("0.01")), "pct": metrics.q_pct(value / total * Decimal("100"))}
         bank_like = True
-        if data["pct"] > ISSUER_CONCENTRATION_LIMIT_PCT:
+        if data["pct"] > cfg.issuer_concentration_limit_pct:
             detail = (
                 f"O emissor {issuer} responde por {str(data['pct']).replace('.', ',')}% da carteira "
                 f"({_brl(data['value'])}), acima do limite de referência de "
-                f"{ISSUER_CONCENTRATION_LIMIT_PCT}%."
+                f"{cfg.issuer_concentration_limit_pct}%."
             )
-            if bank_like and data["value"] > FGC_LIMIT:
+            if bank_like and data["value"] > cfg.fgc_limit:
                 detail += (
                     f" O volume também excede o teto de cobertura do FGC "
-                    f"({_brl(FGC_LIMIT)} por emissor/CPF)."
+                    f"({_brl(cfg.fgc_limit)} por emissor/CPF)."
                 )
             out.append(
                 {
@@ -63,7 +78,7 @@ def generate(positions: list[Position], ref: date) -> list[dict]:
             )
 
     # Rule 2 — maturities inside the window
-    for item in metrics.upcoming_maturities(positions, ref, MATURITY_WINDOW_DAYS):
+    for item in metrics.upcoming_maturities(positions, ref, cfg.maturity_window_days):
         p = item["position"]
         out.append(
             {
@@ -79,7 +94,7 @@ def generate(positions: list[Position], ref: date) -> list[dict]:
 
     # Rule 3 — fund fee above class reference median
     for p in positions:
-        median = FUND_FEE_MEDIAN_PCT.get(p.asset_class)
+        median = cfg.fund_fee_median_pct.get(p.asset_class)
         if p.fund_fee_pct is not None and median is not None and p.fund_fee_pct > median:
             out.append(
                 {

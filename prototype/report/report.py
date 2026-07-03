@@ -33,6 +33,16 @@ def build_report(ctx: dict) -> str:
     meta = ctx["meta"]
     perf = ctx["performance"]
 
+    bench = perf["benchmark_comparison"]
+    if bench["mode"] == "pct_of_benchmark":
+        bench_kpi_label, bench_kpi_value, bench_note = "% do CDI", _pct(bench["value"]), ""
+    else:
+        bench_kpi_label = "Diferença vs. CDI"
+        bench_kpi_value = _pct(bench["value"]) + " p.p."
+        bench_note = ("<p class='method-note'>Em períodos de retorno negativo, o percentual do CDI "
+                      "deixa de ser uma medida significativa; apresentamos a diferença em pontos "
+                      "percentuais em relação ao CDI.</p>")
+
     alloc_rows = ""
     for cls, data in sorted(ctx["allocation"].items(), key=lambda kv: kv[1]["value"], reverse=True):
         pct = float(data["pct"])
@@ -92,8 +102,9 @@ def build_report(ctx: dict) -> str:
     <div class="kpi"><div class="kpi-label">Patrimônio consolidado</div><div class="kpi-value">{_brl(ctx['total_value'])}</div></div>
     <div class="kpi"><div class="kpi-label">Retorno no semestre</div><div class="kpi-value">{_pct(perf['portfolio_total_pct'])}</div></div>
     <div class="kpi"><div class="kpi-label">CDI no período</div><div class="kpi-value">{_pct(perf['cdi_total_pct'])}</div></div>
-    <div class="kpi"><div class="kpi-label">% do CDI</div><div class="kpi-value">{_pct(perf['pct_of_cdi'])}</div></div>
+    <div class="kpi"><div class="kpi-label">{bench_kpi_label}</div><div class="kpi-value">{bench_kpi_value}</div></div>
   </div>
+  {bench_note}
 </section>
 
 <section>
