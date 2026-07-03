@@ -56,7 +56,8 @@ Playbook de venda documentado a partir do que funcionou com os 5 primeiros · on
 |---|---|---|---|
 | 2026-07-03 | CTO-IA | Spike de dados: BCB/SGS e Tesouro testados ao vivo ✅; descoberta de piso de custo de agregadores (→ [SPIKE_001](../02_ARCHITECTURE/spikes/SPIKE_001_DATA_SOURCES.md)) | **Feito** (pendências: CVM, cotações B3, parsing de extratos reais, sandbox Pluggy) |
 | 2026-07-03 | CTO-IA | Protótipo v0.1: motor Decimal (Dietz encadeado, alocação, concentração, liquidez, vencimentos), 4 regras de insight, briefing + relatório institucional HTML, runs imutáveis, **17/17 testes dourados** | **Feito** — Python 3.12 instalado na máquina do fundador; demo roda local |
-| 2026-07-03 | Fundador | Lista de 30+ alvos e agendamento das entrevistas | **Aguardando início** |
-| 2026-07-03 | Fundador | Enviar 2–3 extratos reais de posição (podem ser anonimizados) para o teste de parsing e casos dourados reais | **Aguardando** — bloqueia a pendência principal do spike |
+| 2026-07-03 | Fundador | **10 entrevistas realizadas** — sinal forte (4 pedidos de piloto, trilha de auditoria citada espontaneamente 2x). Registro e leitura de gate em [INTERVIEWS_TRACKER](tracking/INTERVIEWS_TRACKER.md) | **Parcial** — faltam: dados de preço (Van Westendorp), classificação ICP de 4 entrevistados, 5–10 entrevistas, e conversão dos 4 pilotos em design partners **pagantes** (0/5 do gate) |
+| 2026-07-03 | Fundador | 3 extratos reais XP ("Posição Detalhada") entregues | **Feito** — protegidos fora do versionamento (LGPD) |
+| 2026-07-03 | CTO-IA | Parsing por visão dos 3 extratos → fila de confirmação (totais por seção, controle anti-alucinação em 2 etapas) | **Aguardando confirmação do fundador** para virar casos dourados reais |
 
 **Changelog:** v1.0 (2026-07-03) — versão inicial sob delegação total. · v1.1 (2026-07-03) — status vivo inaugurado com entregas do primeiro dia da Fase 0.

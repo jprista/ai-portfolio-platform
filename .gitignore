@@ -7,6 +7,10 @@
 # Generated prototype outputs (reproducible via demo.py)
 prototype/out/
 
+# REAL client data — NEVER versioned (LGPD; DATA_STRATEGY §7)
+prototype/data/real/
+04_EXECUTION/tracking/private/
+
 # Python
 __pycache__/
 *.pyc
