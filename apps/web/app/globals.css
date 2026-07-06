@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f6f7f5;
+  --color-surface: #ffffff;
+  --color-ink: #1a2330;
+  --color-muted: #6b7684;
+  --color-faint: #9aa4b0;
+  --color-navy: #0e2a43;
+  --color-navy-deep: #0a1f33;
+  --color-navy-soft: #eef3f8;
+  --color-gold: #b08c3d;
+  --color-gold-soft: #f7f1e3;
+  --color-hairline: #e8e9e4;
+  --color-ok: #1e7a4d;
+  --color-ok-soft: #e7f4ec;
+  --color-info: #3b6ea8;
+  --color-info-soft: #e9f0f8;
+  --color-warn: #a8681c;
+  --color-warn-soft: #f9f0e3;
+  --color-bad: #b0403c;
+  --color-bad-soft: #f9e9e8;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  --shadow-card: 0 1px 2px rgb(14 42 67 / 0.04), 0 8px 24px rgb(14 42 67 / 0.05);
+  --shadow-card-hover: 0 2px 4px rgb(14 42 67 / 0.06), 0 12px 32px rgb(14 42 67 / 0.09);
+  --shadow-drawer: -12px 0 48px rgb(10 31 51 / 0.16);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-feature-settings: "cv11", "ss01";
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-gold-soft);
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.drawer-in { animation: drawer-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }

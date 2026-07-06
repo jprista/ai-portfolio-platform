@@ -2,6 +2,9 @@
   "name": "ai-portfolio-platform",
   "private": true,
   "packageManager": "pnpm@11.10.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["sharp", "unrs-resolver"]
+  },
   "scripts": {
     "engine:test": "python services/engine/tests/golden_test.py && python services/engine/tests/golden_accrual_test.py",
     "engine:dev": "uvicorn main:app --app-dir services/engine --port 8500 --reload",
