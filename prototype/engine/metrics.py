@@ -130,6 +130,11 @@ def benchmark_comparison(portfolio_pct: Decimal, benchmark_pct: Decimal) -> dict
     }
 
 
+def parse_bcb_date(value: str) -> date:
+    """BCB/SGS dates come as dd/mm/yyyy."""
+    return datetime.strptime(value, "%d/%m/%Y").date()
+
+
 def accumulate_bcb_series(series: list[dict], start: date, end: date) -> Decimal:
     """Accumulate a BCB/SGS daily percentage series (e.g. CDI) into a period return (%).
 
@@ -137,7 +142,7 @@ def accumulate_bcb_series(series: list[dict], start: date, end: date) -> Decimal
     """
     factor = Decimal("1")
     for item in series:
-        day = datetime.strptime(item["data"], "%d/%m/%Y").date()
+        day = parse_bcb_date(item["data"])
         if start <= day <= end:
             factor *= Decimal("1") + Decimal(item["valor"]) / HUNDRED
     return q_pct((factor - 1) * HUNDRED)

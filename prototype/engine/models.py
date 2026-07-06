@@ -21,6 +21,7 @@ class Position:
     maturity: date | None = None
     index_desc: str | None = None  # e.g. "110% CDI", "IPCA + 6,20%"
     fund_fee_pct: Decimal | None = None  # management fee, % p.a.
+    holder: str | None = None  # account holder — FGC coverage is per CPF per issuer (DOMAIN_MODEL §9.1)
 
     @staticmethod
     def from_dict(d: dict) -> "Position":
@@ -34,6 +35,7 @@ class Position:
             maturity=date.fromisoformat(d["maturity"]) if d.get("maturity") else None,
             index_desc=d.get("index_desc"),
             fund_fee_pct=Decimal(d["fund_fee_pct"]) if d.get("fund_fee_pct") else None,
+            holder=d.get("holder"),
         )
 
 

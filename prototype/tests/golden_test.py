@@ -130,10 +130,13 @@ def main() -> None:
     check("LCA Banco Gama in 46 days", (mats[0]["position"].issuer, mats[0]["days"]), ("Banco Gama", 46))
 
     print("== Golden: deterministic insights ==")
+    # DOMAIN_MODEL §9.1: FGC per holder (José/Banco Beta 562.350,75; Maria/Banco
+    # Delta 262.110,45 — both above 250k) + aggregate family concentration alert.
     att = insights.generate(positions, ref)
     codes = sorted(i["code"] for i in att)
     check("expected insight codes",
-          codes, ["CONCENTRACAO_EMISSOR", "CONFIANCA_DADO", "CUSTO_ACIMA_MEDIANA", "VENCIMENTO_PROXIMO"])
+          codes, ["CONCENTRACAO_EMISSOR", "CONFIANCA_DADO", "CUSTO_ACIMA_MEDIANA",
+                  "FGC_TITULAR", "FGC_TITULAR", "VENCIMENTO_PROXIMO"])
 
     print()
     if FAILURES:

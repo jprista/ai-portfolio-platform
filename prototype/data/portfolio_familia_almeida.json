@@ -6,21 +6,22 @@
     "organization": "Demo Wealth Advisors",
     "reference_date": "2026-06-30",
     "last_meeting_date": "2026-03-31",
-    "next_meeting_date": "2026-07-09"
+    "next_meeting_date": "2026-07-09",
+    "benchmark": {"kind": "cdi", "name": "CDI"}
   },
   "positions": [
-    {"name": "CDB liquidez diária 100% CDI — Banco Beta", "asset_class": "caixa", "issuer": "Banco Beta", "value": "150000.00", "liquidity": "D0", "confidence": "A", "index_desc": "100% CDI"},
-    {"name": "CDB 110% CDI — Banco Beta", "asset_class": "renda_fixa_pos", "issuer": "Banco Beta", "value": "412350.75", "liquidity": "vencimento", "maturity": "2027-08-20", "confidence": "A", "index_desc": "110% CDI"},
-    {"name": "LCA 93% CDI — Banco Gama", "asset_class": "renda_fixa_pos", "issuer": "Banco Gama", "value": "121480.30", "liquidity": "vencimento", "maturity": "2026-08-15", "confidence": "A", "index_desc": "93% CDI"},
-    {"name": "CDB IPCA+ 6,20% — Banco Delta", "asset_class": "renda_fixa_inflacao", "issuer": "Banco Delta", "value": "262110.45", "liquidity": "vencimento", "maturity": "2028-05-10", "confidence": "B", "index_desc": "IPCA + 6,20%"},
-    {"name": "Tesouro IPCA+ 2035", "asset_class": "renda_fixa_inflacao", "issuer": "Tesouro Nacional", "value": "384220.10", "liquidity": "D+2", "confidence": "A", "index_desc": "IPCA + taxa de mercado"},
-    {"name": "Tesouro Selic 2029", "asset_class": "renda_fixa_pos", "issuer": "Tesouro Nacional", "value": "305880.65", "liquidity": "D+2", "confidence": "A", "index_desc": "SELIC"},
-    {"name": "FIM Órion Multiestratégia", "asset_class": "multimercado", "issuer": "Órion Asset", "value": "448760.20", "liquidity": "D+30", "confidence": "A", "fund_fee_pct": "1.90"},
-    {"name": "FIA Vértice Ações", "asset_class": "renda_variavel", "issuer": "Vértice Capital", "value": "251340.55", "liquidity": "D+30", "confidence": "A", "fund_fee_pct": "2.00"},
-    {"name": "BOVA11 — ETF Ibovespa", "asset_class": "renda_variavel", "issuer": "B3 / iShares", "value": "180250.00", "liquidity": "D+2", "confidence": "A"},
-    {"name": "ITUB4 — Itaú Unibanco PN", "asset_class": "renda_variavel", "issuer": "Itaú Unibanco", "value": "142780.00", "liquidity": "D+2", "confidence": "A"},
-    {"name": "HGLG11 — FII CSHG Logística", "asset_class": "renda_variavel", "issuer": "CSHG", "value": "151200.80", "liquidity": "D+2", "confidence": "A"},
-    {"name": "Previdência VGBL — FIE Zafira", "asset_class": "previdencia", "issuer": "Zafira Seguros", "value": "103560.00", "liquidity": "D+60", "confidence": "C", "fund_fee_pct": "1.20"}
+    {"name": "CDB liquidez diária 100% CDI — Banco Beta", "asset_class": "caixa", "issuer": "Banco Beta", "holder": "José Almeida", "value": "150000.00", "liquidity": "D0", "confidence": "A", "index_desc": "100% CDI"},
+    {"name": "CDB 110% CDI — Banco Beta", "asset_class": "renda_fixa_pos", "issuer": "Banco Beta", "holder": "José Almeida", "value": "412350.75", "liquidity": "vencimento", "maturity": "2027-08-20", "confidence": "A", "index_desc": "110% CDI"},
+    {"name": "LCA 93% CDI — Banco Gama", "asset_class": "renda_fixa_pos", "issuer": "Banco Gama", "holder": "Maria Almeida", "value": "121480.30", "liquidity": "vencimento", "maturity": "2026-08-15", "confidence": "A", "index_desc": "93% CDI"},
+    {"name": "CDB IPCA+ 6,20% — Banco Delta", "asset_class": "renda_fixa_inflacao", "issuer": "Banco Delta", "holder": "Maria Almeida", "value": "262110.45", "liquidity": "vencimento", "maturity": "2028-05-10", "confidence": "B", "index_desc": "IPCA + 6,20%"},
+    {"name": "Tesouro IPCA+ 2035", "asset_class": "renda_fixa_inflacao", "issuer": "Tesouro Nacional", "holder": "José Almeida", "value": "384220.10", "liquidity": "D+2", "confidence": "A", "index_desc": "IPCA + taxa de mercado"},
+    {"name": "Tesouro Selic 2029", "asset_class": "renda_fixa_pos", "issuer": "Tesouro Nacional", "holder": "Maria Almeida", "value": "305880.65", "liquidity": "D+2", "confidence": "A", "index_desc": "SELIC"},
+    {"name": "FIM Órion Multiestratégia", "asset_class": "multimercado", "issuer": "Órion Asset", "holder": "José Almeida", "value": "448760.20", "liquidity": "D+30", "confidence": "A", "fund_fee_pct": "1.90"},
+    {"name": "FIA Vértice Ações", "asset_class": "renda_variavel", "issuer": "Vértice Capital", "holder": "Maria Almeida", "value": "251340.55", "liquidity": "D+30", "confidence": "A", "fund_fee_pct": "2.00"},
+    {"name": "BOVA11 — ETF Ibovespa", "asset_class": "renda_variavel", "issuer": "B3 / iShares", "holder": "José Almeida", "value": "180250.00", "liquidity": "D+2", "confidence": "A"},
+    {"name": "ITUB4 — Itaú Unibanco PN", "asset_class": "renda_variavel", "issuer": "Itaú Unibanco", "holder": "José Almeida", "value": "142780.00", "liquidity": "D+2", "confidence": "A"},
+    {"name": "HGLG11 — FII CSHG Logística", "asset_class": "renda_variavel", "issuer": "CSHG", "holder": "Maria Almeida", "value": "151200.80", "liquidity": "D+2", "confidence": "A"},
+    {"name": "Previdência VGBL — FIE Zafira", "asset_class": "previdencia", "issuer": "Zafira Seguros", "holder": "Maria Almeida", "value": "103560.00", "liquidity": "D+60", "confidence": "C", "fund_fee_pct": "1.20"}
   ],
   "history": {
     "valuations": [

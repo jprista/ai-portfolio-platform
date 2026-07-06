@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from engine import insights, metrics, run as run_mod
+from engine import benchmark, insights, metrics, run as run_mod
 from engine.models import Flow, Position, Valuation
 from narrative.briefing import build_briefing
 from report.report import build_report
@@ -59,7 +59,10 @@ def main() -> None:
             "start": p["start"], "end": p["end"],
         })
 
-    cdi_total = metrics.accumulate_bcb_series(cdi_raw, valuations[0].day + timedelta(days=1), ref)
+    # benchmark extensível (DOMAIN_MODEL §9.4): default CDI, definido por família
+    bench_def = benchmark.from_meta(meta.get("benchmark"))
+    market = {"cdi": cdi_raw}
+    cdi_total = benchmark.accumulate(bench_def, valuations[0].day + timedelta(days=1), ref, market)
     portfolio_total = returns["total_return_pct"]
     bench_cmp = metrics.benchmark_comparison(portfolio_total, cdi_total)
     risk_alloc = sum(
@@ -85,7 +88,8 @@ def main() -> None:
             changes.append(f"{kind} de {_brl(abs(f.amount))} em {f.day:%d/%m/%Y}.")
 
     agenda_by_code = {
-        "CONCENTRACAO_EMISSOR": "Decidir tratamento da concentração por emissor apontada pelo motor.",
+        "CONCENTRACAO_EMISSOR": "Decidir tratamento da concentração da família por emissor apontada pelo motor.",
+        "FGC_TITULAR": "Revisar exposições acima do teto do FGC por titular (realocação entre emissores/titulares).",
         "VENCIMENTO_PROXIMO": "Definir destino do vencimento próximo (LCA) antes da data.",
         "CUSTO_ACIMA_MEDIANA": "Revisar custo do fundo com taxa acima da mediana da classe.",
         "CONFIANCA_DADO": "Atualizar fonte da posição com selo de confiança C (previdência).",

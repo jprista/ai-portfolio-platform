@@ -43,37 +43,56 @@ def generate(
     out: list[dict] = []
     total = metrics.total_value(positions)
 
-    # Rule 1 — private CREDIT issuer concentration (and FGC ceiling).
-    # Scope: credit-risk classes only. Concentration in a fund MANAGER is a
-    # different risk with a different threshold — deliberately out of the
-    # prototype (candidate for v1 rules), caught by golden test on 2026-07-03.
+    # Rules 1a/1b — founder decision 2026-07-03 (DOMAIN_MODEL §9.1):
+    # FGC is computed PER HOLDER (CPF/CNPJ per issuer — regulatory reality);
+    # the consolidated family view ALSO gets an aggregate concentration alert.
+    # Scope: credit-risk classes only (manager concentration is a different
+    # risk — deliberately out, caught by golden test on 2026-07-03).
     credit_classes = ("caixa", "renda_fixa_pos", "renda_fixa_inflacao")
     credit_positions = [p for p in positions if p.asset_class in credit_classes]
+
+    # Rule 1a — aggregate family concentration by issuer (% of total wealth)
     issuer_credit: dict[str, Decimal] = {}
     for p in credit_positions:
         issuer_credit[p.issuer] = issuer_credit.get(p.issuer, Decimal("0")) + p.value
     for issuer, value in sorted(issuer_credit.items(), key=lambda kv: kv[1], reverse=True):
         if issuer in cfg.sovereign_issuers:
             continue
-        data = {"value": value.quantize(Decimal("0.01")), "pct": metrics.q_pct(value / total * Decimal("100"))}
-        bank_like = True
-        if data["pct"] > cfg.issuer_concentration_limit_pct:
-            detail = (
-                f"O emissor {issuer} responde por {str(data['pct']).replace('.', ',')}% da carteira "
-                f"({_brl(data['value'])}), acima do limite de referência de "
-                f"{cfg.issuer_concentration_limit_pct}%."
-            )
-            if bank_like and data["value"] > cfg.fgc_limit:
-                detail += (
-                    f" O volume também excede o teto de cobertura do FGC "
-                    f"({_brl(cfg.fgc_limit)} por emissor/CPF)."
-                )
+        pct = metrics.q_pct(value / total * Decimal("100"))
+        if pct > cfg.issuer_concentration_limit_pct:
             out.append(
                 {
                     "code": "CONCENTRACAO_EMISSOR",
                     "severity": "alta",
-                    "title": f"Concentração em {issuer}",
-                    "detail": detail,
+                    "title": f"Concentração da família em {issuer}",
+                    "detail": (
+                        f"Na visão consolidada da família, o emissor {issuer} responde por "
+                        f"{str(pct).replace('.', ',')}% da carteira ({_brl(value.quantize(Decimal('0.01')))}), "
+                        f"acima do limite de referência de {cfg.issuer_concentration_limit_pct}%."
+                    ),
+                }
+            )
+
+    # Rule 1b — FGC ceiling per holder per issuer (absolute, regulatory)
+    holder_issuer: dict[tuple[str, str], Decimal] = {}
+    for p in credit_positions:
+        if p.issuer in cfg.sovereign_issuers:
+            continue
+        key = (p.holder or "Titular não identificado", p.issuer)
+        holder_issuer[key] = holder_issuer.get(key, Decimal("0")) + p.value
+    for (holder, issuer), value in sorted(holder_issuer.items(), key=lambda kv: kv[1], reverse=True):
+        if value > cfg.fgc_limit:
+            excess = (value - cfg.fgc_limit).quantize(Decimal("0.01"))
+            out.append(
+                {
+                    "code": "FGC_TITULAR",
+                    "severity": "alta",
+                    "title": f"Acima do FGC: {holder} em {issuer}",
+                    "detail": (
+                        f"O titular {holder} possui {_brl(value.quantize(Decimal('0.01')))} em instrumentos "
+                        f"de crédito do emissor {issuer} — {_brl(excess)} acima do teto de cobertura do FGC "
+                        f"({_brl(cfg.fgc_limit)} por CPF/CNPJ por emissor)."
+                    ),
                 }
             )
 

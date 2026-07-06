@@ -14,7 +14,7 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
 
-from engine import accrual, insights, metrics  # noqa: E402
+from engine import accrual, benchmark, insights, metrics  # noqa: E402
 from engine.calendar_br import business_days_between, easter, holidays  # noqa: E402
 from engine.models import Position  # noqa: E402
 
@@ -110,6 +110,41 @@ def main() -> None:
     codes_relaxed = [i["code"] for i in insights.generate(positions, date(2026, 6, 30), relaxed)]
     check("default config flags concentration", "CONCENTRACAO_EMISSOR" in codes_default, True)
     check("relaxed 25% limit removes the flag", "CONCENTRACAO_EMISSOR" in codes_relaxed, False)
+
+    print("== Golden: FGC per holder (DOMAIN_MODEL 9.1) ==")
+    # Hand: José/Banco Beta = 150.000,00 + 412.350,75 = 562.350,75 > 250k
+    #       Maria/Banco Delta = 262.110,45 > 250k ; Maria/Banco Gama = 121.480,30 ok
+    att = insights.generate(positions, date(2026, 6, 30))
+    fgc = [i for i in att if i["code"] == "FGC_TITULAR"]
+    check("two holders above FGC ceiling", len(fgc), 2)
+    check("Jose above FGC at Banco Beta",
+          any("José Almeida" in i["title"] and "Banco Beta" in i["title"] for i in fgc), True)
+    check("Maria above FGC at Banco Delta",
+          any("Maria Almeida" in i["title"] and "Banco Delta" in i["title"] for i in fgc), True)
+    relaxed_fgc = insights.InsightConfig(fgc_limit=Decimal("600000"))
+    att_fgc = insights.generate(positions, date(2026, 6, 30), relaxed_fgc)
+    check("fgc_limit 600k removes both alerts",
+          len([i for i in att_fgc if i["code"] == "FGC_TITULAR"]), 0)
+
+    print("== Golden: extensible benchmark (DOMAIN_MODEL 9.4) ==")
+    # Q1/2026 DU by hand: Jan 21 (22 weekdays - 01/01) + Feb 18 (-Carnaval) + Mar 22 = 61
+    check("DU Q1/2026 (hand-counted 61)",
+          business_days_between(date(2025, 12, 31), date(2026, 3, 31)), 61)
+    ipca_raw = json.loads((BASE / "data" / "ipca_monthly_2026S1.json").read_text(encoding="utf-8"))
+    bench = benchmark.BenchmarkDef(kind="ipca_plus", name="IPCA+5%", real_rate_aa=Decimal("5"))
+    got_bench = benchmark.accumulate(bench, date(2025, 12, 31), date(2026, 3, 31), {"ipca": ipca_raw})
+    # Hand: (1,0033 × 1,0070 × 1,0088) × 1,05^(61/252) − 1  (IPCA reais jan-mar/2026)
+    expected_bench = (
+        (Decimal("1.0033") * Decimal("1.0070") * Decimal("1.0088"))
+        * Decimal("1.05") ** (Decimal(61) / Decimal(252))
+        - 1
+    ) * 100
+    check("IPCA+5% Q1/2026", got_bench, expected_bench.quantize(Decimal("0.0001")))
+    try:
+        benchmark.accumulate(benchmark.BenchmarkDef(kind="composite"), date(2026, 1, 1), date(2026, 6, 30), {})
+        check("unsupported benchmark raises declared limitation", False, True)
+    except NotImplementedError:
+        check("unsupported benchmark raises declared limitation", True, True)
 
     print()
     if FAILURES:
