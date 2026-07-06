@@ -14,9 +14,9 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
 
-from engine import accrual, benchmark, insights, metrics  # noqa: E402
-from engine.calendar_br import business_days_between, easter, holidays  # noqa: E402
-from engine.models import Position  # noqa: E402
+from engine_core import accrual, benchmark, insights, metrics  # noqa: E402
+from engine_core.calendar_br import business_days_between, easter, holidays  # noqa: E402
+from engine_core.models import Position  # noqa: E402
 
 Q6 = Decimal("0.000001")
 Q2 = Decimal("0.01")
@@ -103,7 +103,7 @@ def main() -> None:
     check("negative case value", neg_case["value"], Decimal("-6.50"))
 
     print("== Golden: parameterizable thresholds (§6) ==")
-    raw = json.loads((BASE / "data" / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
+    raw = json.loads((BASE / "tests" / "data" / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
     positions = [Position.from_dict(d) for d in raw["positions"]]
     relaxed = insights.InsightConfig(issuer_concentration_limit_pct=Decimal("25"))
     codes_default = [i["code"] for i in insights.generate(positions, date(2026, 6, 30))]
@@ -130,7 +130,7 @@ def main() -> None:
     # Q1/2026 DU by hand: Jan 21 (22 weekdays - 01/01) + Feb 18 (-Carnaval) + Mar 22 = 61
     check("DU Q1/2026 (hand-counted 61)",
           business_days_between(date(2025, 12, 31), date(2026, 3, 31)), 61)
-    ipca_raw = json.loads((BASE / "data" / "ipca_monthly_2026S1.json").read_text(encoding="utf-8"))
+    ipca_raw = json.loads((BASE / "tests" / "data" / "ipca_monthly_2026S1.json").read_text(encoding="utf-8"))
     bench = benchmark.BenchmarkDef(kind="ipca_plus", name="IPCA+5%", real_rate_aa=Decimal("5"))
     got_bench = benchmark.accumulate(bench, date(2025, 12, 31), date(2026, 3, 31), {"ipca": ipca_raw})
     # Hand: (1,0033 × 1,0070 × 1,0088) × 1,05^(61/252) − 1  (IPCA reais jan-mar/2026)

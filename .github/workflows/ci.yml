@@ -15,9 +15,13 @@ jobs:
         with:
           python-version: '3.12'
       - name: Suite original (17 verificacoes)
-        run: python prototype/tests/golden_test.py
+        run: python services/engine/tests/golden_test.py
       - name: Suite de accrual e regras (29 verificacoes)
-        run: python prototype/tests/golden_accrual_test.py
+        run: python services/engine/tests/golden_accrual_test.py
+      - name: Smoke do servico (health + analyze)
+        run: |
+          pip install --quiet -r services/engine/requirements.txt httpx
+          python services/engine/tests/smoke_api.py
 
   artifacts:
     name: Contratos e migracoes

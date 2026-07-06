@@ -1,0 +1,5 @@
+# Engine service. NOTE: engine_core (the calculation core) is stdlib-only by
+# design — these dependencies are for the API layer only.
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.8

@@ -16,8 +16,8 @@ from pathlib import Path
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
 
-from engine import insights, metrics  # noqa: E402
-from engine.models import Flow, Position, Valuation  # noqa: E402
+from engine_core import insights, metrics  # noqa: E402
+from engine_core.models import Flow, Position, Valuation  # noqa: E402
 
 PCT_Q = Decimal("0.0001")
 FAILURES: list[str] = []
@@ -32,7 +32,7 @@ def check(name: str, got, expected) -> None:
 
 
 def main() -> None:
-    raw = json.loads((BASE / "data" / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
+    raw = json.loads((BASE / "tests" / "data" / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
     positions = [Position.from_dict(d) for d in raw["positions"]]
     valuations = [Valuation.from_dict(d) for d in raw["history"]["valuations"]]
     flows = [Flow.from_dict(d) for d in raw["history"]["flows"]]

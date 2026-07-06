@@ -1,0 +1,11 @@
+{
+  "name": "ai-portfolio-platform",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "scripts": {
+    "engine:test": "python services/engine/tests/golden_test.py && python services/engine/tests/golden_accrual_test.py",
+    "engine:dev": "uvicorn main:app --app-dir services/engine --port 8500 --reload",
+    "validate": "python scripts/validate_artifacts.py",
+    "migrate": "python scripts/apply_migrations.py"
+  }
+}

@@ -12,13 +12,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
-from engine import benchmark, insights, metrics, run as run_mod
-from engine.models import Flow, Position, Valuation
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "engine"))
+from engine_core import benchmark, insights, metrics, run as run_mod
+from engine_core.models import Flow, Position, Valuation
 from narrative.briefing import build_briefing
 from report.report import build_report
 
 BASE = Path(__file__).resolve().parent
 OUT = BASE / "out"
+DATA = BASE.parent / "services" / "engine" / "tests" / "data"
 
 MONTHS_PT = {1: "jan", 2: "fev", 3: "mar", 4: "abr", 5: "mai", 6: "jun",
              7: "jul", 8: "ago", 9: "set", 10: "out", 11: "nov", 12: "dez"}
@@ -30,8 +33,8 @@ def _brl(value) -> str:
 
 
 def main() -> None:
-    portfolio_raw = json.loads((BASE / "data" / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
-    cdi_raw = json.loads((BASE / "data" / "cdi_daily_2026S1.json").read_text(encoding="utf-8"))
+    portfolio_raw = json.loads((DATA / "portfolio_familia_almeida.json").read_text(encoding="utf-8"))
+    cdi_raw = json.loads((DATA / "cdi_daily_2026S1.json").read_text(encoding="utf-8"))
 
     meta = portfolio_raw["meta"]
     ref = date.fromisoformat(meta["reference_date"])
