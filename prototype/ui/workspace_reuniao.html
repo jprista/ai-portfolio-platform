@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Workspace de Reunião — protótipo S5</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="org">
+    <div class="name">Demo Wealth Advisors</div>
+    <div class="plan">Plataforma de inteligência</div>
+  </div>
+  <nav>
+    <a href="mesa_de_reunioes.html">Mesa de Reuniões</a>
+    <a class="active" href="#">Famílias</a>
+    <a href="#">Caixa de confirmação <span class="badge">1</span></a>
+    <a href="#">Configurações</a>
+    <a href="#">Auditoria</a>
+  </nav>
+  <div class="user">
+    <div class="who">João Pedro Prista</div>
+    <div class="role">Administrador</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="crumb"><a href="mesa_de_reunioes.html">Mesa de Reuniões</a> / Família Almeida / Reunião de revisão</div>
+  <div class="page-head">
+    <h1>Família Almeida — Revisão trimestral</h1>
+    <div class="date">quinta-feira, 9 de julho de 2026 · 10:00</div>
+  </div>
+
+  <div class="journey">
+    <span class="step done">Agendada</span><span class="arrow">→</span>
+    <span class="step current">Em preparação</span><span class="arrow">→</span>
+    <span class="step">Material gerado</span><span class="arrow">→</span>
+    <span class="step">Material enviado</span><span class="arrow">→</span>
+    <span class="step">Realizada</span>
+    <span style="margin-left:auto"><button class="btn">Gerar material do cliente</button></span>
+  </div>
+
+  <div class="cols">
+    <div class="col-main">
+      <div class="tabs">
+        <div class="tab active">Briefing</div>
+        <div class="tab">Pontos de atenção (6)</div>
+        <div class="tab">Carteira</div>
+      </div>
+
+      <div class="card prose">
+        <p><strong>Resumo executivo.</strong> No semestre, a carteira rendeu
+        <span class="num" onclick="openDrawer()">5,20%</span>, contra
+        <span class="num" onclick="openDrawer()">6,84%</span> do CDI no mesmo período
+        (<span class="num" onclick="openDrawer()">76,01% do CDI</span>). A diferença é explicada
+        principalmente pela parcela de renda variável e multimercado
+        (<span class="num" onclick="openDrawer()">40,30%</span> da carteira), cujo objetivo é retorno
+        acima do CDI em horizonte longo — não no semestre. O ponto estrutural que merece decisão
+        nesta reunião não é performance: são os itens de concentração e vencimento abaixo.</p>
+
+        <p><strong>O que mudou desde a última reunião (31/03/2026).</strong> Patrimônio passou de
+        <span class="num" onclick="openDrawer()">R$ 2.883.450,00</span> para
+        <span class="num" onclick="openDrawer()">R$ 2.913.933,80</span>; retorno de
+        <span class="num" onclick="openDrawer()">2,11%</span> no período; resgate de
+        <span class="num" onclick="openDrawer()">R$ 30.000,00</span> em 10/05/2026.</p>
+      </div>
+
+      <h2 class="section">Pontos de atenção — detecção determinística do motor</h2>
+
+      <div class="insight alta">
+        <div class="sev">ALTA</div>
+        <div class="t">Acima do FGC: José Almeida em Banco Beta</div>
+        <div class="d">O titular possui <span class="num" onclick="openDrawer()">R$ 562.350,75</span> em
+        instrumentos de crédito do emissor — R$ 312.350,75 acima do teto de cobertura do FGC
+        (R$ 250.000,00 por CPF/CNPJ por emissor).</div>
+      </div>
+
+      <div class="insight alta">
+        <div class="sev">ALTA</div>
+        <div class="t">Acima do FGC: Maria Almeida em Banco Delta</div>
+        <div class="d">R$ 262.110,45 em CDB IPCA+ — R$ 12.110,45 acima do teto. Estouro pequeno e
+        invisível na visão agregada da família; detectado pelo cálculo por titular.</div>
+      </div>
+
+      <div class="insight alta">
+        <div class="sev">ALTA</div>
+        <div class="t">Concentração da família em Banco Beta</div>
+        <div class="d">Na visão consolidada, o emissor responde por
+        <span class="num" onclick="openDrawer()">19,30%</span> da carteira (limite da política: 15%).</div>
+      </div>
+
+      <div class="insight media">
+        <div class="sev">MÉDIA</div>
+        <div class="t">Vencimento em 46 dias: LCA 93% CDI — Banco Gama</div>
+        <div class="d">R$ 121.480,30 vencem em 15/08/2026. Definir destino evita dias parados em caixa.</div>
+      </div>
+
+      <div class="insight media">
+        <div class="sev">MÉDIA</div>
+        <div class="t">Taxa acima da mediana: FIM Órion Multiestratégia</div>
+        <div class="d">1,90% a.a. contra mediana de 1,50% da classe. Impacto anual estimado: R$ 1.795,04.</div>
+      </div>
+
+      <div class="insight baixa">
+        <div class="sev">BAIXA</div>
+        <div class="t">Dado com confiança C: Previdência VGBL — FIE Zafira <span class="seal C" title="Documento parseado, não reconciliado">C</span></div>
+        <div class="d">Atualizar a fonte antes da reunião.</div>
+      </div>
+
+      <div class="qa-dock">
+        <div class="qa-row">
+          <input placeholder="Pergunte sobre a carteira… (ex.: por que rendemos menos que o CDI?)" value="Por que rendemos menos que o CDI no semestre?">
+          <button class="btn">Perguntar</button>
+        </div>
+        <div class="qa-answer">
+          A carteira rendeu <span class="num" onclick="openDrawer()">5,20%</span> contra 6,84% do CDI.
+          A decomposição do motor mostra que a parcela de renda fixa acompanhou o CDI, enquanto renda
+          variável e multimercado (40,30% da alocação) tiveram semestre abaixo do indexador — comportamento
+          esperado para o horizonte dessas classes. Não há erro de execução: é efeito de alocação, alinhado
+          à política da família.
+          <div class="qa-meta">
+            <span>Fundamentado no run <code>85fd25b3</code> · verificador de proveniência: aprovado</span>
+            <span class="audit-hint" title="Interações com a IA são registradas na trilha de auditoria da organização, conforme os termos de uso e a política de retenção definida pela sua organização.">⛨ registrado</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <h2 class="section">Material da reunião</h2>
+      <div class="material">
+        <div class="kind">Briefing interno — v1</div>
+        <div class="meta">Gerado hoje às 15:37 por João Pedro<br>
+        run <code>85fd25b3152c43ab</code> · motor v0.2.0 · política v1</div>
+      </div>
+      <div class="material">
+        <div class="kind">Relatório do cliente — ainda não gerado</div>
+        <div class="meta">Será produzido com a marca do escritório a partir do run atual.
+        Após o envio, o material é <strong>congelado</strong>; alterações criam nova versão,
+        preservando as anteriores.</div>
+      </div>
+      <h2 class="section">Pauta sugerida</h2>
+      <div class="card">
+        <ol style="padding-left:18px; font-size:12.5px; line-height:1.9">
+          <li>Exposições acima do FGC por titular (2 casos)</li>
+          <li>Concentração da família em Banco Beta</li>
+          <li>Destino da LCA que vence em 15/08</li>
+          <li>Custo do FIM Órion vs. mediana</li>
+          <li>Objetivos e horizonte das parcelas de risco</li>
+        </ol>
+      </div>
+      <p class="note">Todos os números desta tela têm proveniência: clique em qualquer valor
+      sublinhado para ver origem, metodologia e versões.</p>
+    </div>
+  </div>
+</main>
+
+<!-- Gaveta de proveniência (padrão global §4) -->
+<div class="drawer" id="drawer">
+  <span class="close" onclick="closeDrawer()">×</span>
+  <h3>Proveniência do número</h3>
+  <div class="note">Retorno da carteira no semestre</div>
+  <dl>
+    <dt>Valor completo</dt>
+    <dd><strong>5,2017%</strong> (exibido: 5,20%)</dd>
+    <dt>Metodologia</dt>
+    <dd>Modified Dietz mensal encadeado (aproximação de TWR), fluxos ponderados por dia —
+    ENGINE_METHODOLOGY §4.</dd>
+    <dt>Dados de origem</dt>
+    <dd>7 valorações mensais (31/12/2025 a 30/06/2026) · 2 fluxos (aporte R$ 50.000,00 em 15/03;
+    resgate R$ 30.000,00 em 10/05) · CDI: BCB/SGS série 12.</dd>
+    <dt>Execução</dt>
+    <dd>run <code>85fd25b3152c43ab</code> · motor <code>v0.2.0</code> · política de limiares
+    <code>v1</code> · dados de 30/06/2026.</dd>
+    <dt>Confiança dos dados</dt>
+    <dd><span class="seal A">A</span> ×9 &nbsp;<span class="seal B">B</span> ×2 &nbsp;<span class="seal C">C</span> ×1
+    — 1 posição (previdência) com fonte a atualizar.</dd>
+  </dl>
+  <p class="note" style="margin-top:16px">Reproduzível: o mesmo snapshot e a mesma versão do motor
+  produzem exatamente este resultado, para sempre.</p>
+</div>
+
+<script>
+function openDrawer(){ document.getElementById('drawer').classList.add('open'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+</script>
+
+</body>
+</html>

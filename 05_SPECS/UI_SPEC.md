@@ -4,13 +4,15 @@
 |---|---|
 | **Versão** | 1.0 |
 | **Data** | 2026-07-03 |
-| **Status** | **Aguardando aprovação do fundador** (4 pontos de revisão no §8) |
+| **Status** | **Aprovado pelo fundador em 2026-07-03** (v1.1, com as 4 decisões do §8 e a diretriz geral de UX incorporadas) — implementação autorizada |
 | **Subordinado a** | [PRODUCT_VISION.md](../01_PRODUCT/PRODUCT_VISION.md) (princípios de experiência) · [MVP_SCOPE.md](../01_PRODUCT/MVP_SCOPE.md) (caminho dourado) · [API_SPEC.md](API_SPEC.md) v1.1 |
 | **Implementa-se em** | `apps/web` (Next.js) — cada tela referencia os endpoints que consome |
 
 ---
 
 ## 1. Fundações de design
+
+> **Diretriz geral de UX (fundador, 2026-07-03 — princípio permanente):** em toda decisão de interface, priorizar **clareza, confiança e simplicidade**, no nível de profissionalismo de software de grandes bancos e gestoras. Recursos técnicos, auditoria e complexidade metodológica existem — mas aparecem **apenas quando agregam valor ao profissional**; no restante do tempo, a experiência é limpa, objetiva e focada na tomada de decisão. (Na prática: proveniência a um clique, nunca na cara; auditoria indicada, nunca gritada.)
 
 | Tema | Decisão |
 |---|---|
@@ -44,8 +46,9 @@ Home (Mesa de Reuniões)                         ← a agenda é a home, não um
 Passos: criar organização → subir logo/cores (preview do relatório em tempo real — o momento "isso é meu") → convidar equipe (opcional, pulável) → criar primeira família → conectar dados (Open Finance **ou** upload de extrato **ou** manual — os três caminhos lado a lado, sem hierarquia de culpa) → primeira análise disparada automaticamente. Barra de progresso honesta; tudo pulável exceto organização e família.
 
 ### S2 — Home: Mesa de Reuniões
-- **Coluna principal:** próximas reuniões ordenadas por data, cada cartão com: família, data, chip de estado (§5), resumo de pontos de atenção do último run (`3 pontos · 1 alta`), ação primária contextual ("Preparar" / "Gerar material" / "Marcar realizada").
-- **Coluna lateral:** *Precisa da sua atenção* — extrações aguardando confirmação, posições com contrato incompleto (`CONTRACT_TERMS_MISSING`), dados defasados (selo C/D), reuniões sem follow-up.
+Ao abrir a plataforma, o profissional sabe imediatamente (decisão do fundador, §8.1): **reuniões de hoje · análises pendentes · carteiras que precisam de revisão · alertas de risco · tarefas pendentes.**
+- **Coluna principal:** reuniões de hoje e próximas, ordenadas por data, cada cartão com: família, data, chip de estado (§5), resumo de pontos de atenção do último run (`3 pontos · 1 alta`), ação primária contextual ("Preparar" / "Gerar material" / "Marcar realizada").
+- **Coluna lateral:** *Precisa da sua atenção*, agrupada em: **Análises pendentes** (extrações aguardando confirmação, contratos incompletos) · **Carteiras para revisão** (dados defasados, selos C/D) · **Alertas de risco** (concentração/FGC do último run) · **Tarefas** (vencimentos próximos, follow-ups).
 - **Vazio-estado** (primeiro uso): guia os 3 passos restantes do onboarding, nunca uma tela em branco.
 - Consome: `GET /families/*/meetings`, `GET /audit-events` (pendências), `GET /documents?status=awaiting_confirmation`.
 
@@ -67,7 +70,7 @@ Layout em três zonas:
 1. **Cabeçalho de estado:** família, data, os 6 estados como jornada visual (chips), transições permitidas como botões; pulo de estado pede confirmação leve e avisa que será auditado ("Registrar como realizada sem material? A exceção ficará na trilha").
 2. **Painel de preparação (centro):** abas *Briefing* (resumo executivo + o-que-mudou + pauta sugerida, gerados do run com `validator_result` visível) · *Pontos de atenção* (cards por severidade, cada um expansível até o número de origem) · *Carteira* (S3 embutida).
 3. **Trilho de material (direita):** versões do material com autor/data/parâmetros; `material_sent` congela (cadeado + tooltip explicando); regenerar cria v2 preservando v1 (decisão API 9.2); botão de download/envio.
-4. **Dock de Q&A (inferior, recolhível):** pergunta → resposta fundamentada no run, com proveniência e aviso permanente discreto: *"Interações registradas na trilha de auditoria"* (decisão API 9.3).
+4. **Dock de Q&A (inferior, recolhível):** pergunta → resposta fundamentada no run, com proveniência. Registro em auditoria indicado por **ícone discreto com tooltip** (decisão do fundador §8.3: o usuário sabe, sem intrusão; o detalhe vive nos termos de uso).
 - Consome: `GET /meetings/{id}`, `POST .../transition`, `POST .../materials`, `POST /analysis-runs/{id}/generations|qa`.
 
 ### S6 — Editor de material
@@ -100,11 +103,13 @@ Dashboard de mercado/cotações · feed de notícias · modo apresentação (v1.
 
 Caminho dourado completo sem mouse exceto upload · valor em ≤ 30 min do cadastro (medido no onboarding) · nenhum número sem proveniência acessível · nenhuma tela vazia sem orientação · relatório com marca do escritório indistinguível de material feito por analista sênior (teste com os extratos reais do fundador).
 
-## 8. Pontos que exigem a sua revisão (prática do seu mercado)
+## 8. Decisões do fundador (revisão de prática, 2026-07-03)
 
-1. **A Home é a Mesa de Reuniões** — sem dashboard de mercado, sem cotações. O dia do profissional começa pela agenda e pelas pendências. Confirma que é assim que *você* começaria o dia, ou sente falta de um pulso de mercado?
-2. **Números nunca são editáveis no material (S6)** — para mudar um número, corrige-se o dado e regenera-se. Isso pode frustrar ("só quero ajustar esse valorzinho"), mas é a integridade I1 na interface. Sustenta essa dureza com usuários reais?
-3. **Aviso de auditoria no Q&A (S5)** — o lembrete discreto e permanente de que interações são registradas: transparência necessária ou atrito desnecessário (dado que já está nos termos)?
-4. **Selos de confiança no material do cliente final** — o relatório enviado ao cliente mostra o mix de confiança na nota metodológica (transparência total) ou os selos são apenas internos, com o material exibindo somente a data-base dos dados? Minha inclinação: nota metodológica sintética no material (sem os selos por posição), detalhe completo interno.
+1. **Home = produtividade, sem pulso de mercado — aprovado.** Ao abrir: reuniões de hoje, análises pendentes, carteiras a revisar, alertas de risco, tarefas. Módulo de mercado (notícias/indicadores/cotações) registrado como possibilidade futura que **não pode competir** com o objetivo principal.
+2. **Números nunca editáveis — aprovado totalmente.** Alteração sempre na origem do dado + nova geração. "A confiança na plataforma depende de que os relatórios sejam sempre reproduzíveis e auditáveis."
+3. **Auditoria do Q&A indicada discretamente — aprovado com ajuste:** ícone discreto + termos de uso; sem aviso intrusivo permanente.
+4. **Relatório do cliente limpo — aprovado:** nota metodológica resumida no material; detalhes completos (fontes, selos por posição, versões, trilha) apenas na área interna para profissionais autorizados.
 
-**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação.
+**Diretriz geral de UX registrada como princípio permanente** (ver §1): clareza, confiança e simplicidade em nível de software de grandes bancos; complexidade técnica visível apenas quando agrega valor.
+
+**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação. · v1.1 (2026-07-03) — aprovada com as 4 decisões e a diretriz geral de UX incorporadas (§1, §3, §8).

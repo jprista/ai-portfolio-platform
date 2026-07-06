@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Mesa de Reuniões — protótipo S2</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="org">
+    <div class="name">Demo Wealth Advisors</div>
+    <div class="plan">Plataforma de inteligência</div>
+  </div>
+  <nav>
+    <a class="active" href="mesa_de_reunioes.html">Mesa de Reuniões</a>
+    <a href="#">Famílias</a>
+    <a href="#">Caixa de confirmação <span class="badge">1</span></a>
+    <a href="#">Configurações</a>
+    <a href="#">Auditoria</a>
+  </nav>
+  <div class="user">
+    <div class="who">João Pedro Prista</div>
+    <div class="role">Administrador</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-head">
+    <h1>Mesa de Reuniões</h1>
+    <div class="date">sexta-feira, 3 de julho de 2026</div>
+  </div>
+
+  <div class="cols">
+    <div class="col-main">
+      <h2 class="section">Próximas reuniões</h2>
+
+      <div class="card meeting-card">
+        <div class="when"><div class="day">09</div><div class="rest">jul · qui · 10:00</div></div>
+        <div class="info">
+          <div class="family">Família Almeida</div>
+          <div class="meta">
+            <span class="chip preparing">Em preparação</span> &nbsp;·&nbsp;
+            R$ 2.913.933,80 &nbsp;·&nbsp; 6 pontos de atenção (<span class="attn-hi">3 alta</span>)
+          </div>
+        </div>
+        <a class="btn" href="workspace_reuniao.html">Continuar preparação</a>
+      </div>
+
+      <div class="card meeting-card">
+        <div class="when"><div class="day">10</div><div class="rest">jul · sex · 14:30</div></div>
+        <div class="info">
+          <div class="family">Família Souza</div>
+          <div class="meta">
+            <span class="chip scheduled">Agendada</span> &nbsp;·&nbsp;
+            R$ 1.480.220,00 &nbsp;·&nbsp; última análise há 12 dias
+          </div>
+        </div>
+        <a class="btn ghost" href="#">Preparar</a>
+      </div>
+
+      <div class="card meeting-card">
+        <div class="when"><div class="day">14</div><div class="rest">jul · ter · 09:00</div></div>
+        <div class="info">
+          <div class="family">Família Castro</div>
+          <div class="meta">
+            <span class="chip sent">Material enviado</span> <span class="lock">· congelado em 02/07 17:12</span>
+            &nbsp;·&nbsp; R$ 5.104.870,33
+          </div>
+        </div>
+        <a class="btn ghost" href="#">Marcar realizada</a>
+      </div>
+    </div>
+
+    <div class="col-side">
+      <h2 class="section">Análises pendentes</h2>
+      <div class="card rail-group">
+        <div class="rail-item">
+          <span class="dot info"></span>
+          <span>Extração aguardando confirmação — <strong>Posição Detalhada XP</strong> (Família Souza)</span>
+          <a class="act" href="#">Conferir</a>
+        </div>
+        <div class="rail-item">
+          <span class="dot info"></span>
+          <span>Contrato incompleto: <strong>CDB IPCA+ Banco Delta</strong> — falta data de aniversário</span>
+          <a class="act" href="#">Completar</a>
+        </div>
+      </div>
+
+      <h2 class="section">Alertas de risco</h2>
+      <div class="card rail-group">
+        <div class="rail-item">
+          <span class="dot bad"></span>
+          <span><strong>2 titulares acima do teto do FGC</strong> — José Almeida (Banco Beta) e Maria Almeida (Banco Delta)</span>
+          <a class="act" href="workspace_reuniao.html">Ver</a>
+        </div>
+        <div class="rail-item">
+          <span class="dot bad"></span>
+          <span>Concentração da família em <strong>Banco Beta: 19,30%</strong> (limite da política: 15%)</span>
+          <a class="act" href="workspace_reuniao.html">Ver</a>
+        </div>
+      </div>
+
+      <h2 class="section">Carteiras para revisão</h2>
+      <div class="card rail-group">
+        <div class="rail-item">
+          <span class="dot warn"></span>
+          <span>Previdência FIE Zafira com selo <span class="seal C" title="Confiança C — documento parseado, não reconciliado">C</span> há 9 dias (Família Almeida)</span>
+          <a class="act" href="#">Atualizar</a>
+        </div>
+      </div>
+
+      <h2 class="section">Tarefas</h2>
+      <div class="card rail-group">
+        <div class="rail-item">
+          <span class="dot warn"></span>
+          <span>LCA Banco Gama vence em <strong>46 dias</strong> — definir destino antes de 15/08</span>
+          <a class="act" href="workspace_reuniao.html">Levar à reunião</a>
+        </div>
+      </div>
+
+      <p class="note" style="margin-top:14px">Protótipo estático (UI_SPEC v1.1) com dados reais do motor v0.2.0 — famílias Souza e Castro são cenográficas.</p>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>
