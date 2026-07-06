@@ -67,7 +67,8 @@ def generate(
                     "title": f"Concentração da família em {issuer}",
                     "detail": (
                         f"Na visão consolidada da família, o emissor {issuer} responde por "
-                        f"{str(pct).replace('.', ',')}% da carteira ({_brl(value.quantize(Decimal('0.01')))}), "
+                        f"{str(pct.quantize(Decimal('0.01'))).replace('.', ',')}% da carteira "
+                        f"({_brl(value.quantize(Decimal('0.01')))}), "
                         f"acima do limite de referência de {cfg.issuer_concentration_limit_pct}%."
                     ),
                 }

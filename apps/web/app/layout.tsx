@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
-import { Sidebar } from "@/components/sidebar";
+import { ClerkProvider } from "@clerk/nextjs";
+import { ptBR } from "@clerk/localizations";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -13,13 +14,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${fraunces.variable}`}>
-      <body className="font-sans antialiased">
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="min-w-0 flex-1">{children}</main>
-        </div>
-      </body>
-    </html>
+    <ClerkProvider localization={ptBR}>
+      <html lang="pt-BR" className={`${inter.variable} ${fraunces.variable}`}>
+        <body className="font-sans antialiased">{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

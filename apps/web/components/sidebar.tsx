@@ -1,14 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { UserButton } from "@clerk/nextjs";
 
 const nav = [
-  { label: "Mesa de Reuniões", href: "/", active: true, icon: IconCalendar },
-  { label: "Famílias", href: "#", icon: IconUsers },
-  { label: "Caixa de confirmação", href: "#", icon: IconInbox, badge: 1 },
-  { label: "Configurações", href: "#", icon: IconSettings },
-  { label: "Auditoria", href: "#", icon: IconShield },
+  { label: "Mesa de Reuniões", href: "/", match: (p: string) => p === "/" || p.startsWith("/reunioes"), icon: IconCalendar },
+  { label: "Radar de Consenso", href: "/radar", match: (p: string) => p.startsWith("/radar"), icon: IconRadar },
+  { label: "Famílias", href: "#", match: () => false, icon: IconUsers },
+  { label: "Caixa de confirmação", href: "#", match: () => false, icon: IconInbox, badge: 1 },
+  { label: "Configurações", href: "#", match: () => false, icon: IconSettings },
+  { label: "Auditoria", href: "#", match: () => false, icon: IconShield },
 ];
 
 export function Sidebar() {
+  const pathname = usePathname();
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-navy-deep to-navy text-white/80">
       <div className="px-6 pt-7 pb-6">
@@ -21,39 +27,51 @@ export function Sidebar() {
       </div>
 
       <nav className="mt-1 flex flex-col gap-0.5 px-3">
-        {nav.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
-              item.active
-                ? "bg-white/10 font-medium text-white"
-                : "hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            <item.icon className={item.active ? "text-gold" : "text-white/40 group-hover:text-white/70"} />
-            <span className="flex-1">{item.label}</span>
-            {item.badge && (
-              <span className="rounded-full bg-gold px-2 py-0.5 text-[10.5px] font-semibold text-navy-deep">
-                {item.badge}
-              </span>
-            )}
-          </Link>
-        ))}
+        {nav.map((item) => {
+          const active = item.match(pathname);
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] transition-colors ${
+                active ? "bg-white/10 font-medium text-white" : "hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <item.icon className={active ? "text-gold" : "text-white/40 group-hover:text-white/70"} />
+              <span className="flex-1">{item.label}</span>
+              {item.badge && (
+                <span className="rounded-full bg-gold px-2 py-0.5 text-[10.5px] font-semibold text-navy-deep">
+                  {item.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="mt-auto border-t border-white/10 px-6 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gold/90 text-[12px] font-bold text-navy-deep">
-            JP
-          </div>
+          <UserButton
+            appearance={{ elements: { avatarBox: "h-9 w-9 ring-2 ring-gold/70" } }}
+          />
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-medium text-white">João Pedro Prista</div>
-            <div className="text-[11px] text-white/50">Administrador</div>
+            <div className="truncate text-[13px] font-medium text-white">Sua conta</div>
+            <div className="text-[11px] text-white/50">Sessão auditada</div>
           </div>
         </div>
       </div>
     </aside>
+  );
+}
+
+function IconRadar({ className = "" }: { className?: string }) {
+  return (
+    <svg className={`h-[17px] w-[17px] ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 12l5.5-5.5" />
+      <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+    </svg>
   );
 }
 
