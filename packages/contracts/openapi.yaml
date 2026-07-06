@@ -1,0 +1,916 @@
+openapi: 3.1.0
+info:
+  title: AI Portfolio Platform API
+  version: 1.1.0
+  description: >
+    Contrato único da plataforma (API_SPEC.md v1.1, aprovado 2026-07-03).
+    Garantias: dinheiro como string decimal (nunca float); proveniência
+    (run_id, engine_version, policy_version, data_as_of) em toda resposta de
+    análise; limitações declaradas; recursos imutáveis sem PUT/PATCH/DELETE;
+    isolamento de tenant pelo token (nunca por parâmetro).
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: families
+  - name: portfolio
+  - name: ingestion
+  - name: analysis
+  - name: meetings
+  - name: configuration
+  - name: audit
+
+paths:
+  /families:
+    get:
+      tags: [families]
+      operationId: listFamilies
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }]
+      responses:
+        '200': { $ref: '#/components/responses/FamilyPage' }
+    post:
+      tags: [families]
+      operationId: createFamily
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FamilyInput' } } } }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/Family' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [families]
+      operationId: getFamily
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Family' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+    patch:
+      tags: [families]
+      operationId: updateFamily
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FamilyInput' } } } }
+      responses:
+        '200': { description: Atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/Family' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/holders:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [families]
+      operationId: listHolders
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Holder' } } } } }
+    post:
+      tags: [families]
+      operationId: createHolder
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HolderInput' } } } }
+      responses:
+        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/Holder' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/accounts:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [families]
+      operationId: listAccounts
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Account' } } } } }
+    post:
+      tags: [families]
+      operationId: createAccount
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AccountInput' } } } }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/Account' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/shares:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [families]
+      operationId: listFamilyShares
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/FamilyShare' } } } } }
+    post:
+      tags: [families]
+      operationId: createFamilyShare
+      description: Compartilhamento explícito (decisão 9.4). v1 aceita apenas scope=full; enum reservado para permissões granulares.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FamilyShareInput' } } } }
+      responses:
+        '201': { description: Concedido (auditado como family_share_granted), content: { application/json: { schema: { $ref: '#/components/schemas/FamilyShare' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /shares/{shareId}:
+    delete:
+      tags: [families]
+      operationId: revokeFamilyShare
+      parameters: [{ name: shareId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '204': { description: Revogado (auditado como family_share_revoked) }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /accounts/{accountId}/transactions:
+    parameters: [{ $ref: '#/components/parameters/AccountId' }]
+    get:
+      tags: [portfolio]
+      operationId: listTransactions
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }]
+      responses:
+        '200': { $ref: '#/components/responses/TransactionPage' }
+    post:
+      tags: [portfolio]
+      operationId: createTransaction
+      description: Imutável (I2) — não existe PUT/PATCH/DELETE; correção via /transactions/{id}/reversals.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TransactionInput' } } } }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /transactions/{transactionId}/reversals:
+    post:
+      tags: [portfolio]
+      operationId: reverseTransaction
+      parameters: [{ name: transactionId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: false, content: { application/json: { schema: { type: object, properties: { reason: { type: string } } } } } }
+      responses:
+        '201': { description: Estorno criado (auditável), content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /accounts/{accountId}/positions:
+    parameters: [{ $ref: '#/components/parameters/AccountId' }]
+    get:
+      tags: [portfolio]
+      operationId: listPositions
+      parameters: [{ name: as_of, in: query, schema: { type: string, format: date } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PositionSnapshot' } } } } }
+    post:
+      tags: [portfolio]
+      operationId: createPosition
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PositionInput' } } } }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/PositionSnapshot' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /positions/{positionId}/contract-terms:
+    post:
+      tags: [portfolio]
+      operationId: completeContractTerms
+      description: Complementação de dados de contrato pelo usuário (DOMAIN_MODEL 9.3) — grava contract_terms_origin=user_provided e é declarado na análise.
+      parameters: [{ name: positionId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContractTerms' } } } }
+      responses:
+        '200': { description: Atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/PositionSnapshot' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /documents:
+    post:
+      tags: [ingestion]
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [family_id, file]
+              properties:
+                family_id: { type: string, format: uuid }
+                file: { type: string, format: binary, description: 'Extrato PDF/XLSX/CSV, máx. 25 MB' }
+      responses:
+        '202': { description: Aceito para extração, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /documents/{documentId}:
+    parameters: [{ $ref: '#/components/parameters/DocumentId' }]
+    get:
+      tags: [ingestion]
+      operationId: getDocument
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /documents/{documentId}/extraction:
+    parameters: [{ $ref: '#/components/parameters/DocumentId' }]
+    get:
+      tags: [ingestion]
+      operationId: getExtraction
+      responses:
+        '200': { description: Resultado para conferência humana, content: { application/json: { schema: { $ref: '#/components/schemas/Extraction' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /documents/{documentId}/extraction/confirm:
+    post:
+      tags: [ingestion]
+      operationId: confirmExtraction
+      description: Nada entra no motor sem confirmação humana (MVP_SCOPE 3.1). Auditado como extraction_confirmed.
+      parameters: [{ $ref: '#/components/parameters/DocumentId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ExtractionConfirmation' } } } }
+      responses:
+        '200': { description: Confirmado; posições criadas, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/PositionSnapshot' } } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/connections:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [ingestion]
+      operationId: listConnections
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Connection' } } } } }
+    post:
+      tags: [ingestion]
+      operationId: createConnection
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionInput' } } } }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/Connection' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /connections/{connectionId}:
+    delete:
+      tags: [ingestion]
+      operationId: revokeConnection
+      description: Revogação de consentimento Open Finance.
+      parameters: [{ name: connectionId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '204': { description: Revogada }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/analysis-runs:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [analysis]
+      operationId: listAnalysisRuns
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }]
+      responses:
+        '200': { $ref: '#/components/responses/AnalysisRunPage' }
+    post:
+      tags: [analysis]
+      operationId: createAnalysisRun
+      description: Dispara análise; retorna run imutável (I2) com proveniência completa.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                as_of: { type: string, format: date, description: 'Default: hoje' }
+      responses:
+        '201': { description: Run criado, content: { application/json: { schema: { $ref: '#/components/schemas/AnalysisRun' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /analysis-runs/{runId}:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    get:
+      tags: [analysis]
+      operationId: getAnalysisRun
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AnalysisRun' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /analysis-runs/{runId}/insights:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    get:
+      tags: [analysis]
+      operationId: listInsights
+      responses:
+        '200': { description: Pontos de atenção com a política/versão usada, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Insight' } } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /analysis-runs/{runId}/generations:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [analysis]
+      operationId: createGeneration
+      description: Narrativa via IA fundamentada no run; passa pelo Verificador de Proveniência Numérica. Auditada; retenção conforme política da organização.
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenerationRequest' } } } }
+      responses:
+        '201': { description: Gerada, content: { application/json: { schema: { $ref: '#/components/schemas/Generation' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /analysis-runs/{runId}/qa:
+    parameters: [{ $ref: '#/components/parameters/RunId' }]
+    post:
+      tags: [analysis]
+      operationId: askQuestion
+      description: Pergunta fundamentada exclusivamente no run (grounded). Auditada como geração (decisão 9.3); retenção conforme política da organização.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/QARequest' } } } }
+      responses:
+        '200': { description: Resposta com proveniência, content: { application/json: { schema: { $ref: '#/components/schemas/QAResponse' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /families/{familyId}/meetings:
+    parameters: [{ $ref: '#/components/parameters/FamilyId' }]
+    get:
+      tags: [meetings]
+      operationId: listMeetings
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }]
+      responses:
+        '200': { $ref: '#/components/responses/MeetingPage' }
+    post:
+      tags: [meetings]
+      operationId: createMeeting
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingInput' } } } }
+      responses:
+        '201': { description: Agendada, content: { application/json: { schema: { $ref: '#/components/schemas/Meeting' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /meetings/{meetingId}:
+    parameters: [{ $ref: '#/components/parameters/MeetingId' }]
+    get:
+      tags: [meetings]
+      operationId: getMeeting
+      responses:
+        '200': { description: Detalhe com linha do tempo, content: { application/json: { schema: { $ref: '#/components/schemas/Meeting' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /meetings/{meetingId}/transition:
+    post:
+      tags: [meetings]
+      operationId: transitionMeeting
+      description: >
+        Máquina de estados validada no servidor. Pulos para frente permitidos e
+        auditados como meeting_state_skipped (quem, quando, estados pulados —
+        decisão 9.1). Retrocesso não existe.
+      parameters: [{ $ref: '#/components/parameters/MeetingId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingTransition' } } } }
+      responses:
+        '200': { description: Transicionada, content: { application/json: { schema: { $ref: '#/components/schemas/Meeting' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /meetings/{meetingId}/materials:
+    post:
+      tags: [meetings]
+      operationId: createMaterial
+      description: >
+        Gera briefing/relatório do run associado. Após material_sent o material é
+        congelado (frozen_at); regenerar cria nova versão preservando anteriores
+        com data, autor e parâmetros (decisão 9.2).
+      parameters: [{ $ref: '#/components/parameters/MeetingId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MaterialRequest' } } } }
+      responses:
+        '201': { description: Material gerado, content: { application/json: { schema: { $ref: '#/components/schemas/Material' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /materials/{materialId}:
+    get:
+      tags: [meetings]
+      operationId: getMaterial
+      parameters: [{ name: materialId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { description: Metadados + URL assinada de download, content: { application/json: { schema: { $ref: '#/components/schemas/Material' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /benchmarks:
+    get:
+      tags: [configuration]
+      operationId: listBenchmarks
+      responses:
+        '200': { description: Presets globais + da organização, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Benchmark' } } } } }
+    post:
+      tags: [configuration]
+      operationId: createBenchmark
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/BenchmarkInput' } } } }
+      responses:
+        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/Benchmark' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /policies/active:
+    get:
+      tags: [configuration]
+      operationId: getActivePolicy
+      responses:
+        '200': { description: Política de limiares vigente, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /policies:
+    post:
+      tags: [configuration]
+      operationId: createPolicyVersion
+      description: Nova versão imutável; auditada como policy_changed.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyInput' } } } }
+      responses:
+        '201': { description: Nova versão vigente, content: { application/json: { schema: { $ref: '#/components/schemas/Policy' } } } }
+        default: { $ref: '#/components/responses/Problem' }
+
+  /audit-events:
+    get:
+      tags: [audit]
+      operationId: listAuditEvents
+      description: A trilha filtrável — o endpoint do auditor externo.
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+        - { name: kind, in: query, schema: { type: string } }
+        - { name: entity_id, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { $ref: '#/components/responses/AuditEventPage' }
+
+  /organizations/me:
+    get:
+      tags: [configuration]
+      operationId: getMyOrganization
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Organization' } } } }
+
+  /users:
+    get:
+      tags: [configuration]
+      operationId: listUsers
+      responses:
+        '200': { description: Equipe da organização, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+
+  parameters:
+    Cursor: { name: cursor, in: query, schema: { type: string } }
+    Limit: { name: limit, in: query, schema: { type: integer, maximum: 200, default: 50 } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string, maxLength: 128 } }
+    FamilyId: { name: familyId, in: path, required: true, schema: { type: string, format: uuid } }
+    AccountId: { name: accountId, in: path, required: true, schema: { type: string, format: uuid } }
+    DocumentId: { name: documentId, in: path, required: true, schema: { type: string, format: uuid } }
+    RunId: { name: runId, in: path, required: true, schema: { type: string, format: uuid } }
+    MeetingId: { name: meetingId, in: path, required: true, schema: { type: string, format: uuid } }
+
+  responses:
+    Problem:
+      description: Erro (RFC 9457 + código de domínio)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    FamilyPage:
+      description: Página de famílias
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties:
+              items: { type: array, items: { $ref: '#/components/schemas/Family' } }
+              next_cursor: { type: [string, 'null'] }
+    TransactionPage:
+      description: Página de transações
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties:
+              items: { type: array, items: { $ref: '#/components/schemas/Transaction' } }
+              next_cursor: { type: [string, 'null'] }
+    AnalysisRunPage:
+      description: Página de runs
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties:
+              items: { type: array, items: { $ref: '#/components/schemas/AnalysisRun' } }
+              next_cursor: { type: [string, 'null'] }
+    MeetingPage:
+      description: Página de reuniões
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties:
+              items: { type: array, items: { $ref: '#/components/schemas/Meeting' } }
+              next_cursor: { type: [string, 'null'] }
+    AuditEventPage:
+      description: Página de eventos de auditoria
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties:
+              items: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } }
+              next_cursor: { type: [string, 'null'] }
+
+  schemas:
+    DecimalString:
+      type: string
+      pattern: '^-?\d+(\.\d+)?$'
+      description: Valor decimal como string — float é proibido no contrato.
+
+    Provenance:
+      type: object
+      description: Obrigatória em toda resposta com números de análise.
+      required: [run_id, engine_version, policy_version, data_as_of]
+      properties:
+        run_id: { type: string, format: uuid }
+        engine_version: { type: string }
+        policy_version: { type: integer }
+        data_as_of: { type: string, format: date }
+
+    DeclaredLimitation:
+      type: object
+      required: [code, detail]
+      properties:
+        code: { type: string, examples: [INSTRUMENT_UNSUPPORTED, STALE_PRICE, VNA_PROJECTION_FALLBACK] }
+        detail: { type: string }
+
+    Problem:
+      type: object
+      required: [title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          type: string
+          enum: [VALIDATION_FAILED, IDEMPOTENCY_CONFLICT, STATE_TRANSITION_INVALID, INSTRUMENT_UNSUPPORTED, CONTRACT_TERMS_MISSING, DATA_INSUFFICIENT, EXTRACTION_UNCONFIRMED, BENCHMARK_UNSUPPORTED, RUN_IMMUTABLE, MATERIAL_FROZEN, TENANT_MISMATCH]
+        missing_fields:
+          type: array
+          items: { type: string }
+
+    Organization:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        brand: { type: object }
+
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, professional] }
+
+    FamilyInput:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+        primary_professional_id: { type: string, format: uuid }
+        benchmark_id: { type: string, format: uuid }
+
+    Family:
+      allOf:
+        - $ref: '#/components/schemas/FamilyInput'
+        - type: object
+          required: [id, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            is_active: { type: boolean }
+            created_at: { type: string, format: date-time }
+
+    HolderInput:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+        document_masked: { type: string, description: 'CPF/CNPJ mascarado — FGC é por documento por emissor' }
+
+    Holder:
+      allOf:
+        - $ref: '#/components/schemas/HolderInput'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+
+    AccountInput:
+      type: object
+      required: [custodian_id, source]
+      properties:
+        holder_id: { type: string, format: uuid }
+        custodian_id: { type: string, format: uuid }
+        external_ref_masked: { type: string }
+        source: { type: string, enum: [open_finance, document, manual] }
+
+    Account:
+      allOf:
+        - $ref: '#/components/schemas/AccountInput'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+            is_active: { type: boolean }
+
+    FamilyShareInput:
+      type: object
+      required: [user_id]
+      properties:
+        user_id: { type: string, format: uuid }
+        scope: { type: string, enum: [full, read_only, edit, approval, audit], default: full, description: 'v1 aceita apenas full; demais reservados' }
+
+    FamilyShare:
+      allOf:
+        - $ref: '#/components/schemas/FamilyShareInput'
+        - type: object
+          required: [id, family_id, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            family_id: { type: string, format: uuid }
+            granted_by: { type: string, format: uuid }
+            created_at: { type: string, format: date-time }
+
+    ContractTerms:
+      type: object
+      properties:
+        principal: { $ref: '#/components/schemas/DecimalString' }
+        start_date: { type: string, format: date }
+        rate_aa: { $ref: '#/components/schemas/DecimalString' }
+        index_pct: { $ref: '#/components/schemas/DecimalString' }
+        anniversary_day: { type: integer, minimum: 1, maximum: 31 }
+        maturity: { type: string, format: date }
+
+    TransactionInput:
+      type: object
+      required: [instrument_id, kind, trade_date, gross_amount]
+      properties:
+        instrument_id: { type: string, format: uuid }
+        kind: { type: string, enum: [buy, sell, deposit, withdrawal, income, fee, transfer_in, transfer_out] }
+        trade_date: { type: string, format: date }
+        settlement_date: { type: string, format: date }
+        quantity: { $ref: '#/components/schemas/DecimalString' }
+        price: { $ref: '#/components/schemas/DecimalString' }
+        gross_amount: { $ref: '#/components/schemas/DecimalString' }
+        currency: { type: string, default: BRL }
+
+    Transaction:
+      allOf:
+        - $ref: '#/components/schemas/TransactionInput'
+        - type: object
+          required: [id, created_at]
+          properties:
+            id: { type: string, format: uuid }
+            reversal_of: { type: [string, 'null'], format: uuid }
+            source: { type: string, enum: [open_finance, document, manual] }
+            created_at: { type: string, format: date-time }
+
+    PositionInput:
+      type: object
+      required: [instrument_id, as_of, value]
+      properties:
+        instrument_id: { type: string, format: uuid }
+        as_of: { type: string, format: date }
+        quantity: { $ref: '#/components/schemas/DecimalString' }
+        value: { $ref: '#/components/schemas/DecimalString' }
+        currency: { type: string, default: BRL }
+        valuation_mode: { type: string, enum: [curve, market], default: curve }
+        contract_terms: { $ref: '#/components/schemas/ContractTerms' }
+
+    PositionSnapshot:
+      allOf:
+        - $ref: '#/components/schemas/PositionInput'
+        - type: object
+          required: [id, source, confidence]
+          properties:
+            id: { type: string, format: uuid }
+            source: { type: string, enum: [open_finance, document, manual] }
+            confidence: { type: string, enum: [A, B, C, D] }
+            missing_contract_fields: { type: array, items: { type: string } }
+            contract_terms_origin: { type: [string, 'null'], enum: [statement, user_provided, mixed, null] }
+
+    Document:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: string, format: uuid }
+        family_id: { type: string, format: uuid }
+        kind: { type: string }
+        sha256: { type: string }
+        status: { type: string, enum: [pending, awaiting_confirmation, confirmed, rejected] }
+        created_at: { type: string, format: date-time }
+
+    Extraction:
+      type: object
+      required: [document_id, status, positions]
+      properties:
+        document_id: { type: string, format: uuid }
+        model_id: { type: string }
+        status: { type: string, enum: [awaiting_confirmation, confirmed, rejected] }
+        positions: { type: array, items: { $ref: '#/components/schemas/PositionInput' } }
+
+    ExtractionConfirmation:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [confirm, reject] }
+        corrections:
+          type: array
+          description: Ajustes do usuário sobre o extraído (viram diffs auditados)
+          items: { $ref: '#/components/schemas/PositionInput' }
+
+    ConnectionInput:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string }
+        provider_item_ref: { type: string }
+
+    Connection:
+      allOf:
+        - $ref: '#/components/schemas/ConnectionInput'
+        - type: object
+          required: [id, status]
+          properties:
+            id: { type: string, format: uuid }
+            status: { type: string, enum: [active, error, revoked] }
+            last_sync_at: { type: [string, 'null'], format: date-time }
+
+    Insight:
+      type: object
+      required: [code, severity, title, detail]
+      properties:
+        code: { type: string, examples: [CONCENTRACAO_EMISSOR, FGC_TITULAR, VENCIMENTO_PROXIMO, CUSTO_ACIMA_MEDIANA, CONFIANCA_DADO] }
+        severity: { type: string, enum: [alta, media, baixa] }
+        title: { type: string }
+        detail: { type: string }
+
+    AnalysisRun:
+      type: object
+      required: [id, provenance, outputs]
+      properties:
+        id: { type: string, format: uuid }
+        family_id: { type: string, format: uuid }
+        provenance: { $ref: '#/components/schemas/Provenance' }
+        declared_limitations: { type: array, items: { $ref: '#/components/schemas/DeclaredLimitation' } }
+        outputs:
+          type: object
+          description: Outputs completos do motor (todos os números com origem única — I1)
+          properties:
+            total_value: { $ref: '#/components/schemas/DecimalString' }
+            allocation: { type: object, additionalProperties: { $ref: '#/components/schemas/AllocationEntry' } }
+            returns: { $ref: '#/components/schemas/Returns' }
+            liquidity: { type: object, additionalProperties: { $ref: '#/components/schemas/AllocationEntry' } }
+            insights: { type: array, items: { $ref: '#/components/schemas/Insight' } }
+        created_at: { type: string, format: date-time }
+
+    AllocationEntry:
+      type: object
+      required: [value, pct]
+      properties:
+        value: { $ref: '#/components/schemas/DecimalString' }
+        pct: { $ref: '#/components/schemas/DecimalString' }
+
+    Returns:
+      type: object
+      properties:
+        total_return_pct: { $ref: '#/components/schemas/DecimalString' }
+        benchmark_pct: { $ref: '#/components/schemas/DecimalString' }
+        benchmark_comparison:
+          type: object
+          description: '%CDI apenas quando significativo; senão diferença em p.p. (ENGINE_METHODOLOGY §5)'
+          required: [mode, value]
+          properties:
+            mode: { type: string, enum: [pct_of_benchmark, pp_difference] }
+            value: { $ref: '#/components/schemas/DecimalString' }
+        periods:
+          type: array
+          items:
+            type: object
+            properties:
+              start: { type: string, format: date }
+              end: { type: string, format: date }
+              return_pct: { $ref: '#/components/schemas/DecimalString' }
+
+    GenerationRequest:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [summary, what_changed, briefing] }
+
+    Generation:
+      type: object
+      required: [id, kind, output_text, validator_result, provenance]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string }
+        output_text: { type: string }
+        validator_result: { type: string, enum: [approved, regenerated, degraded] }
+        provenance: { $ref: '#/components/schemas/Provenance' }
+        created_at: { type: string, format: date-time }
+
+    QARequest:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, maxLength: 2000 }
+
+    QAResponse:
+      type: object
+      required: [answer, validator_result, provenance]
+      properties:
+        answer: { type: string }
+        validator_result: { type: string, enum: [approved, regenerated, degraded] }
+        provenance: { $ref: '#/components/schemas/Provenance' }
+        declared_limitations: { type: array, items: { $ref: '#/components/schemas/DeclaredLimitation' } }
+
+    MeetingInput:
+      type: object
+      required: [scheduled_for]
+      properties:
+        scheduled_for: { type: string, format: date-time }
+        professional_id: { type: string, format: uuid }
+        previous_meeting_id: { type: string, format: uuid }
+
+    Meeting:
+      allOf:
+        - $ref: '#/components/schemas/MeetingInput'
+        - type: object
+          required: [id, status]
+          properties:
+            id: { type: string, format: uuid }
+            family_id: { type: string, format: uuid }
+            status: { type: string, enum: [scheduled, preparing, material_generated, material_sent, held, cancelled] }
+            analysis_run_id: { type: [string, 'null'], format: uuid }
+            material_sent_at: { type: [string, 'null'], format: date-time }
+            held_at: { type: [string, 'null'], format: date-time }
+
+    MeetingTransition:
+      type: object
+      required: [to]
+      properties:
+        to: { type: string, enum: [preparing, material_generated, material_sent, held, cancelled] }
+        note: { type: string }
+
+    MaterialRequest:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [briefing, client_report] }
+        analysis_run_id: { type: string, format: uuid, description: 'Default: run associado à reunião' }
+
+    Material:
+      type: object
+      required: [id, kind, version]
+      properties:
+        id: { type: string, format: uuid }
+        meeting_id: { type: string, format: uuid }
+        kind: { type: string, enum: [briefing, client_report] }
+        version: { type: integer, description: 'Incremental; anteriores preservadas (decisão 9.2)' }
+        supersedes_id: { type: [string, 'null'], format: uuid }
+        frozen_at: { type: [string, 'null'], format: date-time }
+        download_url: { type: string, format: uri, description: 'URL assinada, expira' }
+        provenance: { $ref: '#/components/schemas/Provenance' }
+        created_at: { type: string, format: date-time }
+
+    BenchmarkInput:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [cdi, ipca_plus, index, custom_portfolio, composite] }
+        params: { type: object, description: 'ex.: {"real_rate_aa": "5.00"} para ipca_plus' }
+
+    Benchmark:
+      allOf:
+        - $ref: '#/components/schemas/BenchmarkInput'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+            org_id: { type: [string, 'null'], format: uuid, description: 'null = preset global' }
+
+    PolicyInput:
+      type: object
+      properties:
+        issuer_concentration_limit_pct: { $ref: '#/components/schemas/DecimalString' }
+        fgc_limit: { $ref: '#/components/schemas/DecimalString' }
+        maturity_window_days: { type: integer }
+        min_vol_observations: { type: integer }
+        fee_median_overrides: { type: object }
+        ai_interaction_retention_days: { type: [integer, 'null'], description: 'null = retenção indefinida (decisão 9.3)' }
+
+    Policy:
+      allOf:
+        - $ref: '#/components/schemas/PolicyInput'
+        - type: object
+          required: [id, version, effective_from]
+          properties:
+            id: { type: string, format: uuid }
+            version: { type: integer }
+            effective_from: { type: string, format: date-time }
+
+    AuditEvent:
+      type: object
+      required: [id, kind, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, examples: [meeting_state_skipped, material_frozen, ai_records_purged, extraction_confirmed, policy_changed] }
+        actor_id: { type: [string, 'null'], format: uuid }
+        entity_type: { type: [string, 'null'] }
+        entity_id: { type: [string, 'null'], format: uuid }
+        payload: { type: object }
+        created_at: { type: string, format: date-time }

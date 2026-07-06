@@ -4,7 +4,7 @@
 |---|---|
 | **Versão** | 1.0 |
 | **Data** | 2026-07-03 |
-| **Status** | **Aguardando aprovação do fundador** (4 pontos de revisão no §9) |
+| **Status** | **Aprovado pelo fundador em 2026-07-03** (v1.1, com as 4 decisões do §9 incorporadas) — implementação autorizada |
 | **Subordinado a** | [ARCHITECTURE.md](../02_ARCHITECTURE/ARCHITECTURE.md) (I1, I2, I5) · [DOMAIN_MODEL.md](DOMAIN_MODEL.md) v1.1 · [AI_ARCHITECTURE.md](../02_ARCHITECTURE/AI_ARCHITECTURE.md) |
 | **Implementa-se em** | `packages/contracts/openapi.yaml` (fonte única de tipos TS + Python) |
 
@@ -76,6 +76,14 @@ POST            /meetings/{id}/transition       · {to: preparing|material_gener
 POST            /meetings/{id}/materials        · gera briefing/relatório {kind}; associa run + geração
 GET             /materials/{id}                 · metadados + URL assinada de download
 ```
+**Versionamento de material (decisão do fundador, §9.2):** após `material_sent`, o material é **congelado** (`frozen_at`); regenerar cria **nova versão** (`version` incremental, `supersedes_id` apontando a anterior), preservando integralmente todas as versões com data, autor e parâmetros (run + geração). Tentativa de mutação de material congelado → erro `MATERIAL_FROZEN`.
+
+### Compartilhamento explícito (decisão do fundador, §9.4)
+```
+GET/POST        /families/{id}/shares           · concede acesso de outro profissional à família
+DELETE          /shares/{id}                    · revoga
+```
+`scope` v1: apenas `full`; o enum já nasce extensível (`read_only`, `edit`, `approval`, `audit`) para permissões granulares futuras — estrutura pronta, comportamento v1 mínimo (diretriz de extensibilidade).
 
 ### Configuração e auditoria
 ```
@@ -89,7 +97,7 @@ GET             /organizations/me · /users      · contexto e equipe
 
 ## 4. Máquina de estados da Reunião (imposta no servidor)
 
-Transições válidas (decisão do fundador, DOMAIN_MODEL §9.2): `scheduled → preparing → material_generated → material_sent → held`; `cancelled` alcançável de qualquer estado não-final; **pulos para frente são permitidos** (ex.: `scheduled → held` para reunião feita sem material) **mas ficam registrados na auditoria como pulo** — a realidade operacional não pode ser impedida pelo software, apenas documentada. Retrocesso não existe; correção de estado errado = cancelar e recriar (imutabilidade da linha do tempo). *(Pendente de confirmação — §9.1.)*
+Transições válidas (decisão do fundador, DOMAIN_MODEL §9.2): `scheduled → preparing → material_generated → material_sent → held`; `cancelled` alcançável de qualquer estado não-final; **pulos para frente são permitidos** (confirmado pelo fundador em 2026-07-03) e **toda exceção é registrada na auditoria** — evento `meeting_state_skipped` com quem fez, quando e a lista de estados pulados. Retrocesso não existe; correção de estado errado = cancelar e recriar (imutabilidade da linha do tempo).
 
 ## 5. API interna do motor (web → engine)
 
@@ -97,7 +105,7 @@ Contrato separado e mínimo, sem estado e sem conhecimento de tenant (ARCHITECTU
 
 ## 6. Catálogo de erros de domínio (extensão `code`)
 
-`VALIDATION_FAILED` · `IDEMPOTENCY_CONFLICT` · `STATE_TRANSITION_INVALID` (§4) · `INSTRUMENT_UNSUPPORTED` (classe fora da v1 — devolve a limitação declarada, nunca 500) · `CONTRACT_TERMS_MISSING` (accrual impossível; lista `missing_fields[]` — dispara o fluxo de complementação) · `DATA_INSUFFICIENT` (ex.: volatilidade com < mínimo de observações da política) · `EXTRACTION_UNCONFIRMED` (tentativa de usar dado não confirmado) · `BENCHMARK_UNSUPPORTED` · `RUN_IMMUTABLE` (tentativa de mutação) · `TENANT_MISMATCH` (sempre 404, nunca 403 — não revelamos existência de recurso alheio).
+`VALIDATION_FAILED` · `IDEMPOTENCY_CONFLICT` · `STATE_TRANSITION_INVALID` (§4) · `INSTRUMENT_UNSUPPORTED` (classe fora da v1 — devolve a limitação declarada, nunca 500) · `CONTRACT_TERMS_MISSING` (accrual impossível; lista `missing_fields[]` — dispara o fluxo de complementação) · `DATA_INSUFFICIENT` (ex.: volatilidade com < mínimo de observações da política) · `EXTRACTION_UNCONFIRMED` (tentativa de usar dado não confirmado) · `BENCHMARK_UNSUPPORTED` · `RUN_IMMUTABLE` (tentativa de mutação) · `MATERIAL_FROZEN` (mutação de material após envio — §3) · `TENANT_MISMATCH` (sempre 404, nunca 403 — não revelamos existência de recurso alheio).
 
 ## 7. Versionamento e compatibilidade
 
@@ -107,11 +115,11 @@ Contrato separado e mínimo, sem estado e sem conhecimento de tenant (ARCHITECTU
 
 O que a v1 já garante para o consumo por agentes de IA, sem custo extra: contrato OpenAPI completo e publicado · respostas autossuficientes (proveniência + limitações declaradas em todo payload de análise) · idempotência · zero estado ambiente (nenhum endpoint depende de "tela anterior") · erros estruturados com código de domínio acionável. O que fica para a fase de API pública (v3 do produto): chaves de API por integração, escopos, rate limits por consumidor, webhooks.
 
-## 9. Pontos que exigem a sua revisão (práticas do seu mercado)
+## 9. Decisões do fundador (revisão de prática de mercado, 2026-07-03)
 
-1. **Pulos de estado na reunião (§4):** permitir `scheduled → held` direto (reunião que aconteceu sem material preparado) com registro em auditoria — ou proibir e forçar passagem por todos os estados? Minha proposta: permitir com registro; software que briga com a realidade operacional perde.
-2. **Material enviado é imutável?** Depois de `material_sent`, o relatório que o cliente recebeu deve ser **congelado** (regenerar = novo material, nova versão, ambos guardados)? Minha posição: sim — é a única resposta defensável perante auditoria ("qual PDF o cliente viu?"), mas quero confirmar que corresponde à sua prática.
-3. **Q&A é auditado como geração?** Perguntas e respostas do Q&A ficam registradas na trilha (como as demais gerações de IA), visíveis em `/audit-events`? Proposta: sim, sem exceção — mas isso significa que "perguntas de rascunho" do profissional também ficam registradas.
-4. **Visibilidade entre profissionais da mesma organização:** o profissional A vê as famílias do profissional B por padrão? Proposta v1: papel `admin` vê tudo; `professional` vê apenas as famílias onde é o responsável (`primary_professional_id`) — com compartilhamento explícito como evolução. Corresponde a como escritórios operam?
+1. **Pulos de estado — aprovado.** Qualquer transição válida para frente é permitida; toda exceção registrada na auditoria (quem, quando, estados pulados — evento `meeting_state_skipped`).
+2. **Material enviado — congelado.** Alteração posterior = nova versão; versões anteriores preservadas integralmente com data, horário, autor e parâmetros (run + geração). Rastreabilidade completa (`version`, `supersedes_id`, `frozen_at`).
+3. **Q&A auditado — aprovado com ressalva incorporada:** todas as interações relevantes com IA são auditadas (perguntas, respostas, análises, relatórios), **e a organização define política de retenção** desses registros (`ai_interaction_retention_days` na OrganizationPolicy; `null` = retenção indefinida; expurgo auditado via evento `ai_records_purged`) — por privacidade, armazenamento e conformidade.
+4. **Visibilidade — aprovado:** admin vê tudo; profissional vê apenas famílias sob sua responsabilidade; compartilhamento explícito via `/families/{id}/shares`. **Permissões granulares futuras já modeladas** no enum `share_scope` (`full` na v1; `read_only`, `edit`, `approval`, `audit` reservados) — sem refatoração estrutural quando escritórios maiores chegarem.
 
-**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação.
+**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação. · v1.1 (2026-07-03) — aprovada com as 4 decisões incorporadas (§3, §4, §6, §9).

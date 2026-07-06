@@ -41,7 +41,8 @@ Append-only:          AuditEvent (INSERT-only por permissão de banco)
 |---|---|---|
 | **Organization** | id, name, slug, brand (jsonb: logo, cores), created_at | O tenant. Brand alimenta a Fábrica de Material |
 | **User** | id, org_id, auth_external_id (Clerk), name, email, role (`admin`\|`professional`), status | Papéis mínimos v1 |
-| **OrganizationPolicy** | id, org_id, **version**, effective_from, issuer_concentration_limit_pct (15), fgc_limit (250000), maturity_window_days (90), min_vol_observations (12), fee_median_overrides (jsonb), created_by | **Versionada e imutável**: mudança = nova versão. Defaults = ENGINE_METHODOLOGY §6. UI de edição na v1.1; v1 cria a versão default no onboarding |
+| **OrganizationPolicy** | id, org_id, **version**, effective_from, issuer_concentration_limit_pct (15), fgc_limit (250000), maturity_window_days (90), min_vol_observations (12), fee_median_overrides (jsonb), **ai_interaction_retention_days** (null = indefinida), created_by | **Versionada e imutável**: mudança = nova versão. Defaults = ENGINE_METHODOLOGY §6. Retenção de registros de IA por organização (decisão API_SPEC §9.3); expurgo auditado (`ai_records_purged`). UI de edição na v1.1; v1 cria a versão default no onboarding |
+| **FamilyShare** | id, org_id, family_id, user_id, **scope** (`full` na v1; enum reserva `read_only`\|`edit`\|`approval`\|`audit`), granted_by, created_at | Compartilhamento explícito entre profissionais (decisão API_SPEC §9.4); permissões granulares futuras sem refatoração |
 
 ## 4. Clientes e contas
 
@@ -71,7 +72,7 @@ Append-only:          AuditEvent (INSERT-only por permissão de banco)
 | **ExtractionBatch** | id, source_document_id, model_id, raw_output (jsonb), status, confirmed_by, confirmed_at, diffs (jsonb) | A fila de confirmação humana (MVP_SCOPE 3.1) |
 | **AnalysisRun** | id, org_id, family_id, run_hash, engine_version, **policy_id** (versão usada), input_snapshot_ref (storage), outputs (jsonb), created_by, created_at | **Imutável.** Reproduzível: snapshot + versão ⇒ mesmos bytes |
 | **Meeting** | id, org_id, family_id, professional_id, scheduled_for, status (**decisão do fundador §9.2:** `scheduled` → `preparing` → `material_generated` → `material_sent` → `held`, ou `cancelled`), previous_meeting_id, analysis_run_id, material_sent_at, held_at | **O objeto central.** `previous_meeting_id` encadeia a linha do tempo que alimenta "o que mudou". Os estados acompanham a preparação e o envio prévio do material ao cliente |
-| **GeneratedDocument** | id, org_id, family_id, meeting_id, kind (`briefing`\|`client_report`), storage_path, analysis_run_id, generation_id, created_at | Todo material rastreável ao run e à geração |
+| **GeneratedDocument** | id, org_id, family_id, meeting_id, kind (`briefing`\|`client_report`), storage_path, analysis_run_id, generation_id, **version**, **supersedes_id**, **frozen_at**, created_at | Todo material rastreável ao run e à geração. **Congelado após envio** (decisão API_SPEC §9.2): alteração = nova versão; anteriores preservadas com data, autor e parâmetros |
 | **Generation** | id, org_id, model_id+version, prompt_sha256, analysis_run_id, output_text, validator_result (`approved`\|`regenerated`\|`degraded`), requested_by, created_at | Auditoria de IA (AI_ARCHITECTURE §6) |
 | **GenerationEdit** | id, generation_id, diff, edited_by, created_at | Supervisão humana documentada (Crença C4) |
 
@@ -94,4 +95,4 @@ IDs UUIDv7 (ordenáveis) · dinheiro `NUMERIC(18,2)`, taxas/fatores `NUMERIC(20,
 
 **Diretriz adicional registrada (permanente):** entre simplicidade da v1 e flexibilidade futura, preferir arquitetura extensível — v1 implementa o comportamento padrão, o modelo acomoda novas regras sem refatoração estrutural (§1.6).
 
-**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação. · v1.1 (2026-07-03) — aprovada com as 4 decisões e a diretriz de extensibilidade incorporadas (§1, §4, §5, §6).
+**Changelog:** v1.0 (2026-07-03) — versão inicial para aprovação. · v1.1 (2026-07-03) — aprovada com as 4 decisões e a diretriz de extensibilidade incorporadas (§1, §4, §5, §6). · v1.2 (2026-07-03) — decisões da API_SPEC §9 refletidas no modelo: FamilyShare (scope extensível), retenção de registros de IA na OrganizationPolicy, versionamento/congelamento de GeneratedDocument (migração 0002).
