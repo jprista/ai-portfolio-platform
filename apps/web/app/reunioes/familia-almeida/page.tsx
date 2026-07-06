@@ -54,6 +54,106 @@ const agenda = [
   "Objetivos e horizonte das parcelas de risco",
 ];
 
+type Pos = {
+  name: string;
+  holder: string;
+  index: string;
+  maturity: string;
+  liq: string;
+  seal: string;
+  value: string;
+  pct: string;
+};
+
+const carteira: {
+  cls: string;
+  subtotal: string;
+  pct: string;
+  reading: string;
+  positions: Pos[];
+}[] = [
+  {
+    cls: "Renda fixa pós-fixada",
+    subtotal: "R$ 839.711,70",
+    pct: "28,82%",
+    reading:
+      "Carrego médio ponderado de ≈104% do CDI. A LCA Banco Gama vence em 46 dias — decidir destino nesta reunião evita recurso parado.",
+    positions: [
+      { name: "CDB 110% CDI — Banco Beta", holder: "José", index: "110% CDI", maturity: "20/08/2027", liq: "Vencimento", seal: "A", value: "R$ 412.350,75", pct: "14,15%" },
+      { name: "Tesouro Selic 2029", holder: "Maria", index: "SELIC", maturity: "—", liq: "D+2", seal: "A", value: "R$ 305.880,65", pct: "10,50%" },
+      { name: "LCA 93% CDI — Banco Gama", holder: "Maria", index: "93% CDI", maturity: "15/08/2026", liq: "Vencimento", seal: "A", value: "R$ 121.480,30", pct: "4,17%" },
+    ],
+  },
+  {
+    cls: "Renda variável",
+    subtotal: "R$ 725.571,35",
+    pct: "24,90%",
+    reading:
+      "Quatro veículos, maior posição no FIA Vértice (8,63% da carteira). Semestre abaixo do CDI — comportamento esperado do horizonte da classe, não erro de execução.",
+    positions: [
+      { name: "FIA Vértice Ações", holder: "Maria", index: "—", maturity: "—", liq: "D+30", seal: "A", value: "R$ 251.340,55", pct: "8,63%" },
+      { name: "BOVA11 — ETF Ibovespa", holder: "José", index: "—", maturity: "—", liq: "D+2", seal: "A", value: "R$ 180.250,00", pct: "6,19%" },
+      { name: "HGLG11 — FII CSHG Logística", holder: "Maria", index: "—", maturity: "—", liq: "D+2", seal: "A", value: "R$ 151.200,80", pct: "5,19%" },
+      { name: "ITUB4 — Itaú Unibanco PN", holder: "José", index: "—", maturity: "—", liq: "D+2", seal: "A", value: "R$ 142.780,00", pct: "4,90%" },
+    ],
+  },
+  {
+    cls: "Renda fixa inflação",
+    subtotal: "R$ 646.330,55",
+    pct: "22,18%",
+    reading:
+      "Proteção real de longo prazo com vencimentos 2028 e 2035. CDB Banco Delta responde pelo estouro de FGC da titular Maria (R$ 12.110,45 acima do teto).",
+    positions: [
+      { name: "Tesouro IPCA+ 2035", holder: "José", index: "IPCA + mercado", maturity: "15/05/2035", liq: "D+2", seal: "A", value: "R$ 384.220,10", pct: "13,19%" },
+      { name: "CDB IPCA+ 6,20% — Banco Delta", holder: "Maria", index: "IPCA + 6,20%", maturity: "10/05/2028", liq: "Vencimento", seal: "B", value: "R$ 262.110,45", pct: "9,00%" },
+    ],
+  },
+  {
+    cls: "Multimercado",
+    subtotal: "R$ 448.760,20",
+    pct: "15,40%",
+    reading:
+      "Taxa de administração de 1,90% a.a. contra mediana de 1,50% da classe — impacto anual estimado de R$ 1.795,04. Item de custo na pauta.",
+    positions: [
+      { name: "FIM Órion Multiestratégia", holder: "José", index: "—", maturity: "—", liq: "D+30", seal: "A", value: "R$ 448.760,20", pct: "15,40%" },
+    ],
+  },
+  {
+    cls: "Caixa e liquidez",
+    subtotal: "R$ 150.000,00",
+    pct: "5,15%",
+    reading:
+      "Liquidez imediata concentrada no mesmo emissor do maior CDB (Banco Beta) — contribui para a concentração de 19,30% da família no emissor.",
+    positions: [
+      { name: "CDB liquidez diária 100% CDI — Banco Beta", holder: "José", index: "100% CDI", maturity: "—", liq: "D0", seal: "A", value: "R$ 150.000,00", pct: "5,15%" },
+    ],
+  },
+  {
+    cls: "Previdência",
+    subtotal: "R$ 103.560,00",
+    pct: "3,55%",
+    reading:
+      "Fonte com selo C (extrato parseado, não reconciliado) — atualizar antes da reunião para restaurar a confiança do dado.",
+    positions: [
+      { name: "Previdência VGBL — FIE Zafira", holder: "Maria", index: "—", maturity: "—", liq: "D+60", seal: "C", value: "R$ 103.560,00", pct: "3,55%" },
+    ],
+  },
+];
+
+const liquidez = [
+  { bucket: "D0 — imediata", value: "R$ 150.000,00", pct: 5.15 },
+  { bucket: "Até 30 dias", value: "R$ 1.864.432,30", pct: 63.98 },
+  { bucket: "31 a 360 dias", value: "R$ 225.040,30", pct: 7.72 },
+  { bucket: "Acima de 360 dias", value: "R$ 674.461,20", pct: 23.15 },
+];
+
+const concentracoes = [
+  { label: "Banco Beta (família)", value: "19,30%", note: "limite da política: 15%", bad: true },
+  { label: "José em Banco Beta (FGC)", value: "R$ 562.350,75", note: "R$ 312.350,75 acima do teto", bad: true },
+  { label: "Maria em Banco Delta (FGC)", value: "R$ 262.110,45", note: "R$ 12.110,45 acima do teto", bad: true },
+  { label: "Banco Gama (família)", value: "4,17%", note: "dentro da política", bad: false },
+];
+
 let openDrawerFn: (() => void) | null = null;
 
 function Num({ children }: { children: React.ReactNode }) {
@@ -70,7 +170,7 @@ function Num({ children }: { children: React.ReactNode }) {
 
 export default function WorkspaceReuniao() {
   const [drawer, setDrawer] = useState(false);
-  const [tab, setTab] = useState<"briefing" | "atencao">("briefing");
+  const [tab, setTab] = useState<"briefing" | "atencao" | "carteira">("briefing");
   openDrawerFn = () => setDrawer(true);
 
   return (
@@ -133,6 +233,7 @@ export default function WorkspaceReuniao() {
           <div className="mb-4 flex gap-1 border-b border-hairline">
             {[
               { id: "briefing" as const, label: "Briefing" },
+              { id: "carteira" as const, label: "Carteira" },
               { id: "atencao" as const, label: "Pontos de atenção (6)" },
             ].map((t) => (
               <button
@@ -169,13 +270,98 @@ export default function WorkspaceReuniao() {
                 verificador de proveniência: aprovado · todos os números são clicáveis
               </p>
             </Card>
-          ) : (
+          ) : tab === "atencao" ? (
             <div className="flex flex-col gap-3">
               {insights.map((ins) => (
                 <InsightCard key={ins.title} severity={ins.severity} title={ins.title}>
                   {ins.body}
                 </InsightCard>
               ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {/* posições por classe, com leitura analítica */}
+              {carteira.map((g) => (
+                <Card key={g.cls} className="overflow-hidden">
+                  <div className="flex items-baseline justify-between border-b border-hairline bg-paper/60 px-5 py-3">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-display text-[15px] text-navy">{g.cls}</span>
+                      <span className="text-[12px] text-muted">{g.positions.length} {g.positions.length > 1 ? "posições" : "posição"}</span>
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <span className="tnum text-[13.5px] font-semibold text-navy">{g.subtotal}</span>
+                      <span className="tnum rounded-full bg-navy-soft px-2 py-0.5 text-[11px] font-semibold text-navy">{g.pct}</span>
+                    </div>
+                  </div>
+                  <table className="w-full text-[12.5px]">
+                    <thead>
+                      <tr className="text-left text-[10.5px] font-semibold uppercase tracking-wider text-faint">
+                        <th className="px-5 py-2.5 font-semibold">Ativo</th>
+                        <th className="py-2.5 font-semibold">Titular</th>
+                        <th className="py-2.5 font-semibold">Indexador</th>
+                        <th className="py-2.5 font-semibold">Vencimento</th>
+                        <th className="py-2.5 font-semibold">Liquidez</th>
+                        <th className="py-2.5 text-center font-semibold">Selo</th>
+                        <th className="py-2.5 pr-5 text-right font-semibold">Valor · %</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-hairline">
+                      {g.positions.map((p) => (
+                        <tr key={p.name} className="transition-colors hover:bg-paper/50">
+                          <td className="px-5 py-2.5 font-medium text-ink">{p.name}</td>
+                          <td className="py-2.5 text-muted">{p.holder}</td>
+                          <td className="py-2.5 text-muted">{p.index}</td>
+                          <td className="py-2.5 text-muted">{p.maturity}</td>
+                          <td className="py-2.5 text-muted">{p.liq}</td>
+                          <td className="py-2.5 text-center"><Seal grade={p.seal} /></td>
+                          <td className="py-2.5 pr-5 text-right">
+                            <Num>{p.value}</Num>
+                            <span className="tnum ml-2 text-[11px] text-faint">{p.pct}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="border-t border-hairline bg-gold-soft/40 px-5 py-2.5 text-[12px] leading-relaxed text-ink/75">
+                    <span className="font-semibold text-gold">Leitura do motor · </span>
+                    {g.reading}
+                  </p>
+                </Card>
+              ))}
+
+              {/* liquidez e concentrações */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-5">
+                  <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-faint">Escada de liquidez</div>
+                  <div className="space-y-3">
+                    {liquidez.map((l) => (
+                      <div key={l.bucket}>
+                        <div className="mb-1 flex items-baseline justify-between text-[12px]">
+                          <span className="text-ink/80">{l.bucket}</span>
+                          <span className="tnum text-muted">{l.value} · {l.pct.toFixed(2).replace(".", ",")}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-paper">
+                          <div className="h-full rounded-full bg-navy/80" style={{ width: `${l.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card className="p-5">
+                  <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-faint">Concentrações e FGC</div>
+                  <div className="divide-y divide-hairline">
+                    {concentracoes.map((c) => (
+                      <div key={c.label} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
+                        <div>
+                          <div className="text-[12.5px] font-medium text-ink">{c.label}</div>
+                          <div className={`text-[11px] ${c.bad ? "text-bad" : "text-ok"}`}>{c.note}</div>
+                        </div>
+                        <span className={`tnum text-[13px] font-semibold ${c.bad ? "text-bad" : "text-navy"}`}>{c.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -209,7 +395,7 @@ export default function WorkspaceReuniao() {
           </Card>
         </section>
 
-        <aside className="w-[340px] shrink-0">
+        <aside className={`w-[340px] shrink-0 ${tab === "carteira" ? "hidden" : ""}`}>
           <SectionTitle>Material da reunião</SectionTitle>
           <Card className="p-4">
             <div className="text-[13px] font-semibold text-navy">Briefing interno — v1</div>
