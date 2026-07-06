@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  golden-tests:
+    name: Testes dourados do motor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Suite original (17 verificacoes)
+        run: python prototype/tests/golden_test.py
+      - name: Suite de accrual e regras (29 verificacoes)
+        run: python prototype/tests/golden_accrual_test.py
+
+  artifacts:
+    name: Contratos e migracoes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet pglast openapi-spec-validator pyyaml
+      - run: python scripts/validate_artifacts.py
+
+  secret-scan:
+    name: Verificacao de vazamento de segredos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
