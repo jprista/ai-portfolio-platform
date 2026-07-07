@@ -9,10 +9,10 @@ export function Sidebar({ pendingCount = 0 }: { pendingCount?: number }) {
   const nav = [
     { label: "Mesa de Reuniões", href: "/app", match: (p: string) => p === "/app" || p.startsWith("/app/reunioes"), icon: IconCalendar },
     { label: "Radar de Consenso", href: "/app/radar", match: (p: string) => p.startsWith("/app/radar"), icon: IconRadar },
-    { label: "Famílias", href: "#", match: () => false, icon: IconUsers },
+    { label: "Famílias", href: "/app/familias", match: (p: string) => p.startsWith("/app/familias"), icon: IconUsers },
     { label: "Caixa de confirmação", href: "/app/caixa-de-confirmacao", match: (p: string) => p.startsWith("/app/caixa-de-confirmacao"), icon: IconInbox, badge: pendingCount || undefined },
-    { label: "Configurações", href: "#", match: () => false, icon: IconSettings },
-    { label: "Auditoria", href: "#", match: () => false, icon: IconShield },
+    { label: "Configurações", href: "/app/configuracoes", match: (p: string) => p.startsWith("/app/configuracoes"), icon: IconSettings },
+    { label: "Auditoria", href: "/app/auditoria", match: (p: string) => p.startsWith("/app/auditoria"), icon: IconShield },
   ];
   return (
     <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-gradient-to-b from-navy-deep to-navy text-white/80">

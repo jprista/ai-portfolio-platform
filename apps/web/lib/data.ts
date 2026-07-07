@@ -209,15 +209,16 @@ export async function getExtractionDetail(orgId: string, documentId: string): Pr
 
 export type ManagerCard = {
   name: string;
+  jurisdiction: string;
   period_end: string;
   source_url: string | null;
-  holdings: { rank: number; issuer_name: string; pct_of_total: string; change_kind: string | null }[];
+  holdings: { rank: number; issuer_name: string; instrument: string | null; pct_of_total: string; change_kind: string | null }[];
 };
 
 export async function getRadar(): Promise<ManagerCard[]> {
   const rows = await sql`
-    select mg.name, mf.period_end::text as period_end, mf.source_url,
-           mh.rank, mh.issuer_name, mh.pct_of_total::text as pct_of_total, mh.change_kind
+    select mg.name, mg.jurisdiction, mf.period_end::text as period_end, mf.source_url,
+           mh.rank, mh.issuer_name, mh.instrument, mh.pct_of_total::text as pct_of_total, mh.change_kind
     from market.managers mg
     join lateral (
       select * from market.manager_filings f where f.manager_id = mg.id
@@ -225,12 +226,13 @@ export async function getRadar(): Promise<ManagerCard[]> {
     ) mf on true
     join market.manager_holdings mh on mh.filing_id = mf.id
     where mh.rank <= 6
-    order by mg.name, mh.rank
+    order by mg.jurisdiction, mg.name, mh.rank
   `;
   const byManager = new Map<string, ManagerCard>();
   for (const r of rows) {
     const card: ManagerCard = byManager.get(r.name) ?? {
       name: r.name,
+      jurisdiction: r.jurisdiction,
       period_end: r.period_end,
       source_url: r.source_url,
       holdings: [],
@@ -238,10 +240,127 @@ export async function getRadar(): Promise<ManagerCard[]> {
     card.holdings.push({
       rank: r.rank,
       issuer_name: r.issuer_name,
+      instrument: r.instrument,
       pct_of_total: r.pct_of_total,
       change_kind: r.change_kind,
     });
     byManager.set(r.name, card);
   }
   return [...byManager.values()];
+}
+
+export type FamilyRow = {
+  id: string;
+  display_name: string;
+  wealth: string;
+  n_positions: number;
+  holders: string | null;
+  benchmark: string | null;
+  next_meeting_id: string | null;
+  next_meeting_at: string | null;
+  next_meeting_status: string | null;
+  pending_docs: number;
+  worst_confidence: string | null;
+};
+
+export async function getFamilies(orgId: string): Promise<FamilyRow[]> {
+  return (await sql`
+    select f.id, f.display_name,
+           coalesce((select sum(ps.value) from core.position_snapshots ps
+                     join core.accounts a on a.id = ps.account_id where a.family_id = f.id), 0)::text as wealth,
+           coalesce((select count(*) from core.position_snapshots ps
+                     join core.accounts a on a.id = ps.account_id where a.family_id = f.id), 0)::int as n_positions,
+           (select string_agg(h.display_name, ' · ' order by h.display_name)
+              from core.holders h where h.family_id = f.id) as holders,
+           b.name as benchmark,
+           m.id as next_meeting_id, m.scheduled_for::text as next_meeting_at, m.status as next_meeting_status,
+           (select count(*) from core.source_documents d
+             where d.family_id = f.id and d.status = 'awaiting_confirmation')::int as pending_docs,
+           (select max(ps.confidence) from core.position_snapshots ps
+              join core.accounts a on a.id = ps.account_id where a.family_id = f.id) as worst_confidence
+    from core.families f
+    left join core.benchmarks b on b.id = f.benchmark_id
+    left join lateral (
+      select id, scheduled_for, status from core.meetings mm
+      where mm.family_id = f.id and mm.status not in ('held','cancelled')
+      order by mm.scheduled_for asc limit 1
+    ) m on true
+    where f.org_id = ${orgId} and f.is_active
+    order by 3 desc
+  `) as unknown as FamilyRow[];
+}
+
+export type OrgSettings = {
+  org: { name: string; slug: string; created_at: string };
+  policy: {
+    version: number;
+    effective_from: string;
+    issuer_concentration_limit_pct: string;
+    fgc_limit: string;
+    maturity_window_days: number;
+    min_vol_observations: number;
+    ai_interaction_retention_days: number | null;
+  };
+  policyHistory: { version: number; effective_from: string; created_by_name: string | null }[];
+  team: { name: string; email: string; role: string }[];
+  benchmarks: { name: string; kind: string; global: boolean }[];
+};
+
+export async function getOrgSettings(orgId: string): Promise<OrgSettings> {
+  const org = (await sql`
+    select name, slug, created_at::text as created_at from core.organizations where id = ${orgId}
+  `)[0] as OrgSettings["org"];
+  const policy = (await sql`
+    select version, effective_from::text as effective_from,
+           issuer_concentration_limit_pct::text as issuer_concentration_limit_pct,
+           fgc_limit::text as fgc_limit, maturity_window_days, min_vol_observations,
+           ai_interaction_retention_days
+    from core.organization_policies where org_id = ${orgId}
+    order by version desc limit 1
+  `)[0] as OrgSettings["policy"];
+  const policyHistory = (await sql`
+    select p.version, p.effective_from::text as effective_from, u.name as created_by_name
+    from core.organization_policies p
+    left join core.app_users u on u.id = p.created_by
+    where p.org_id = ${orgId} order by p.version desc
+  `) as unknown as OrgSettings["policyHistory"];
+  const team = (await sql`
+    select name, email, role from core.app_users where org_id = ${orgId} and is_active order by role, name
+  `) as unknown as OrgSettings["team"];
+  const benchmarks = (await sql`
+    select name, kind, (org_id is null) as global from core.benchmarks
+    where org_id is null or org_id = ${orgId} order by org_id nulls first, name
+  `) as unknown as OrgSettings["benchmarks"];
+  return { org, policy, policyHistory, team, benchmarks };
+}
+
+export type AuditRow = {
+  id: string;
+  kind: string;
+  actor_name: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export async function getAuditEvents(orgId: string, kind?: string): Promise<AuditRow[]> {
+  if (kind) {
+    return (await sql`
+      select e.id, e.kind::text as kind, u.name as actor_name, e.entity_type, e.entity_id::text as entity_id,
+             e.payload, e.created_at::text as created_at
+      from audit.events e
+      left join core.app_users u on u.id = e.actor_id
+      where e.org_id = ${orgId} and e.kind::text = ${kind}
+      order by e.created_at desc limit 100
+    `) as unknown as AuditRow[];
+  }
+  return (await sql`
+    select e.id, e.kind::text as kind, u.name as actor_name, e.entity_type, e.entity_id::text as entity_id,
+           e.payload, e.created_at::text as created_at
+    from audit.events e
+    left join core.app_users u on u.id = e.actor_id
+    where e.org_id = ${orgId}
+    order by e.created_at desc limit 100
+  `) as unknown as AuditRow[];
 }
