@@ -30,7 +30,7 @@ export default async function MesaDeReunioes() {
           <h1 className="font-display text-[28px] tracking-tight text-navy">Mesa de Reuniões</h1>
           <p className="mt-1 text-[13px] capitalize text-muted">{today}</p>
         </div>
-        <button className="rounded-xl bg-navy px-4 py-2.5 text-[13px] font-medium text-white shadow-card transition-colors hover:bg-navy-deep">
+        <button className="rounded-full bg-navy px-5 py-2.5 text-[13px] font-medium text-white shadow-card transition-colors hover:bg-navy-deep">
           Agendar reunião
         </button>
       </header>
@@ -77,7 +77,7 @@ export default async function MesaDeReunioes() {
                     </div>
                   </div>
                   <Link
-                    href={hasRun ? `/reunioes/${m.id}` : "#"}
+                    href={hasRun ? `/app/reunioes/${m.id}` : "#"}
                     className={`shrink-0 rounded-xl px-4 py-2 text-[12.5px] font-medium transition-colors ${
                       m.status === "preparing"
                         ? "bg-navy text-white hover:bg-navy-deep"
@@ -107,7 +107,7 @@ export default async function MesaDeReunioes() {
                       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-bad" />
                       <span className="flex-1 text-[12.5px] leading-relaxed text-ink/85">{i.title}</span>
                       {almeida && (
-                        <Link href={`/reunioes/${almeida.id}`} className="shrink-0 text-[12px] font-medium text-info hover:underline">
+                        <Link href={`/app/reunioes/${almeida.id}`} className="shrink-0 text-[12px] font-medium text-info hover:underline">
                           Ver
                         </Link>
                       )}
@@ -140,7 +140,7 @@ export default async function MesaDeReunioes() {
                   LCA Banco Gama vence em <b>46 dias</b> — definir destino antes de 15/08
                 </span>
                 {almeida && (
-                  <Link href={`/reunioes/${almeida.id}`} className="shrink-0 text-[12px] font-medium text-info hover:underline">
+                  <Link href={`/app/reunioes/${almeida.id}`} className="shrink-0 text-[12px] font-medium text-info hover:underline">
                     Ver
                   </Link>
                 )}

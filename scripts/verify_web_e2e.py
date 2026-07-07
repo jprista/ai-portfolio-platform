@@ -10,6 +10,7 @@ Usage:  py scripts/verify_web_e2e.py
 from __future__ import annotations
 
 import base64
+import http.cookiejar
 import json
 import sys
 import urllib.error
@@ -95,14 +96,51 @@ def get_session_cookie_header() -> str:
     return f"__session={jwt}; __client_uat={client_uat}; __clerk_db_jwt={db_jwt}"
 
 
+def browser_like_get(url: str, retries: int = 3) -> tuple[int, str]:
+    """Clerk dev instances perform a handshake redirect dance on first visit
+    to register the 'dev browser' — any real browser follows it silently. A
+    single-shot request without a cookie jar can't see past it, so this
+    helper follows redirects and retains cookies like an actual browser.
+    The handshake token exchange is occasionally flaky under rapid automated
+    requests (observed empirically), so retry a couple of times — real
+    browsers pacing requests normally don't hit this."""
+    last_error: Exception | None = None
+    for _ in range(retries):
+        try:
+            cj = http.cookiejar.CookieJar()
+            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+            r = urllib.request.Request(url, headers={"Accept": "text/html", "User-Agent": UA})
+            resp = opener.open(r, timeout=20)
+            return resp.status, resp.read().decode()
+        except urllib.error.HTTPError as e:
+            last_error = e
+    raise last_error
+
+
 def main() -> None:
+    print("== App: Landing de marketing (pública, sem login) ==")
+    status, home = browser_like_get(f"{APP}/")
+    check("HTTP 200 sem autenticação (rota pública)", status == 200, f"status={status}")
+    for needle, label in [
+        ("Cerne", "marca"),
+        ("Agendar demonstra", "CTA principal"),
+        ("Radar de Consenso", "feature: radar"),
+        ("CVM", "compliance"),
+        ("Perguntas frequentes", "FAQ"),
+    ]:
+        check(f"contém: {label}", needle in home)
+
+    print("== App: /app exige login (nunca vaza conteúdo protegido sem sessão) ==")
+    status, anon = browser_like_get(f"{APP}/app")
+    check("/app não renderiza Mesa de Reuniões sem sessão", "Mesa de Reuni" not in anon, f"status={status}")
+
     print("== Clerk: autenticação real (sign-in token oficial -> sessão -> cookies) ==")
     cookie = get_session_cookie_header()
     check("cookies de sessão obtidos", bool(cookie))
     auth = {"Cookie": cookie, "Accept": "text/html", "User-Agent": UA}
 
     print("== App: Mesa de Reuniões (dados reais do banco de São Paulo) ==")
-    status, html = req(f"{APP}/", headers=auth)
+    status, html = req(f"{APP}/app", headers=auth)
     check("HTTP 200 autenticado (não redirecionado para sign-in)", status == 200, f"status={status}")
     html = str(html)
     for needle, label in [
@@ -121,7 +159,7 @@ def main() -> None:
 
     if m:
         print("== App: Workspace da reunião (carteira completa + proveniência) ==")
-        status, html2 = req(f"{APP}/reunioes/{m.group(1)}", headers=auth)
+        status, html2 = req(f"{APP}/app/reunioes/{m.group(1)}", headers=auth)
         html2 = str(html2)
         check("HTTP 200", status == 200, f"status={status}")
         for needle, label in [
@@ -139,7 +177,7 @@ def main() -> None:
             check(f"contém: {label}", needle in html2)
 
     print("== App: Radar de Consenso (SEC 13F real, dados públicos ao vivo) ==")
-    status, html3 = req(f"{APP}/radar", headers=auth)
+    status, html3 = req(f"{APP}/app/radar", headers=auth)
     html3 = str(html3)
     check("HTTP 200", status == 200, f"status={status}")
     for needle, label in [

@@ -5,8 +5,8 @@ import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 
 const nav = [
-  { label: "Mesa de Reuniões", href: "/", match: (p: string) => p === "/" || p.startsWith("/reunioes"), icon: IconCalendar },
-  { label: "Radar de Consenso", href: "/radar", match: (p: string) => p.startsWith("/radar"), icon: IconRadar },
+  { label: "Mesa de Reuniões", href: "/app", match: (p: string) => p === "/app" || p.startsWith("/app/reunioes"), icon: IconCalendar },
+  { label: "Radar de Consenso", href: "/app/radar", match: (p: string) => p.startsWith("/app/radar"), icon: IconRadar },
   { label: "Famílias", href: "#", match: () => false, icon: IconUsers },
   { label: "Caixa de confirmação", href: "#", match: () => false, icon: IconInbox, badge: 1 },
   { label: "Configurações", href: "#", match: () => false, icon: IconSettings },

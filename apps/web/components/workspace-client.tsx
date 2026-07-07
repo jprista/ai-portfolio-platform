@@ -62,7 +62,7 @@ export function WorkspaceClient(p: WorkspaceProps) {
   return (
     <div className="mx-auto max-w-[1240px] px-10 py-9">
       <nav className="mb-2 text-[12px] text-muted">
-        <Link href="/" className="hover:underline">Mesa de Reuniões</Link>
+        <Link href="/app" className="hover:underline">Mesa de Reuniões</Link>
         <span className="mx-1.5 text-faint">/</span>
         {p.family}
       </nav>
@@ -72,7 +72,7 @@ export function WorkspaceClient(p: WorkspaceProps) {
           <h1 className="font-display text-[26px] tracking-tight text-navy">{p.family} — Revisão</h1>
           <p className="mt-1 text-[13px] text-muted">{p.dateLabel}</p>
         </div>
-        <button className="rounded-xl bg-navy px-4 py-2.5 text-[13px] font-medium text-white shadow-card transition-colors hover:bg-navy-deep">
+        <button className="rounded-full bg-navy px-5 py-2.5 text-[13px] font-medium text-white shadow-card transition-colors hover:bg-navy-deep">
           Gerar material do cliente
         </button>
       </header>
@@ -147,7 +147,7 @@ export function WorkspaceClient(p: WorkspaceProps) {
                     placeholder="Pergunte sobre a carteira…"
                     className="flex-1 rounded-xl border border-hairline bg-paper px-4 py-2.5 text-[13px] outline-none transition-shadow focus:ring-2 focus:ring-gold/40"
                   />
-                  <button className="rounded-xl bg-navy px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-navy-deep">
+                  <button className="rounded-full bg-navy px-5 py-2 text-[13px] font-medium text-white transition-colors hover:bg-navy-deep">
                     Perguntar
                   </button>
                 </div>

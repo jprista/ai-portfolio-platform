@@ -1,5 +1,6 @@
-"""Captures real screenshots of the authenticated app using a real headless
-browser (Playwright), injecting the same Clerk session cookies our e2e
+"""Captures real screenshots of the app using a real headless browser
+(Playwright): the public marketing landing (no auth), then the
+authenticated product injecting the same Clerk session cookies our e2e
 verification proved valid. Saves PNGs for visual review.
 
 Usage:  py scripts/capture_screenshots.py
@@ -20,24 +21,34 @@ OUT.mkdir(exist_ok=True)
 
 def main() -> None:
     cookie_header = get_session_cookie_header()
-    cookies = []
-    for part in cookie_header.split("; "):
-        name, value = part.split("=", 1)
-        domain = "positive-duckling-42.clerk.accounts.dev" if name == "__clerk_db_jwt_x" else "localhost"
-        cookies.append({"name": name, "value": value, "domain": "localhost", "path": "/"})
+    cookies = [
+        {"name": part.split("=", 1)[0], "value": part.split("=", 1)[1], "domain": "localhost", "path": "/"}
+        for part in cookie_header.split("; ")
+    ]
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
+
+        # marketing landing — public, unauthenticated context
+        marketing_ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+        mpage = marketing_ctx.new_page()
+        mpage.goto("http://localhost:3000/", wait_until="networkidle", timeout=20000)
+        mpage.wait_for_timeout(500)
+        mpage.screenshot(path=str(OUT / "00_marketing_landing.png"), full_page=True)
+        print("captured: 00_marketing_landing.png ·", mpage.url)
+        marketing_ctx.close()
+
+        # authenticated product
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         context.add_cookies(cookies)
         page = context.new_page()
 
-        page.goto("http://localhost:3000/", wait_until="networkidle", timeout=20000)
+        page.goto("http://localhost:3000/app", wait_until="networkidle", timeout=20000)
         page.wait_for_timeout(500)
         page.screenshot(path=str(OUT / "01_mesa_de_reunioes.png"), full_page=True)
         print("captured: 01_mesa_de_reunioes.png ·", page.url)
 
-        link = page.locator("a[href^='/reunioes/']").first
+        link = page.locator("a[href^='/app/reunioes/']").first
         href = link.get_attribute("href")
         page.goto(f"http://localhost:3000{href}", wait_until="networkidle", timeout=20000)
         page.wait_for_timeout(500)
@@ -59,7 +70,7 @@ def main() -> None:
         page.screenshot(path=str(OUT / "05_gaveta_provenencia.png"), full_page=True)
         print("captured: 05_gaveta_provenencia.png")
 
-        page.goto("http://localhost:3000/radar", wait_until="networkidle", timeout=20000)
+        page.goto("http://localhost:3000/app/radar", wait_until="networkidle", timeout=20000)
         page.wait_for_timeout(500)
         page.screenshot(path=str(OUT / "06_radar_consenso.png"), full_page=True)
         print("captured: 06_radar_consenso.png")
