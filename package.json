@@ -3,9 +3,11 @@
   "private": true,
   "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "engine:test": "python services/engine/tests/golden_test.py && python services/engine/tests/golden_accrual_test.py",
+    "engine:test": "python services/engine/tests/golden_test.py && python services/engine/tests/golden_accrual_test.py && python services/engine/tests/smoke_api.py",
     "engine:dev": "uvicorn main:app --app-dir services/engine --port 8500 --reload",
+    "web:dev": "pnpm --dir apps/web dev",
     "validate": "python scripts/validate_artifacts.py",
-    "migrate": "python scripts/apply_migrations.py"
+    "migrate": "python scripts/apply_migrations.py",
+    "seed": "python scripts/seed_demo.py && python scripts/fetch_13f.py && python scripts/seed_confirmation_queue.py"
   }
 }

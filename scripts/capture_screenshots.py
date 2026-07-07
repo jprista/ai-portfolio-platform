@@ -75,6 +75,19 @@ def main() -> None:
         page.screenshot(path=str(OUT / "06_radar_consenso.png"), full_page=True)
         print("captured: 06_radar_consenso.png")
 
+        page.goto("http://localhost:3000/app/caixa-de-confirmacao", wait_until="networkidle", timeout=20000)
+        page.wait_for_timeout(500)
+        page.screenshot(path=str(OUT / "07_caixa_confirmacao_lista.png"), full_page=True)
+        print("captured: 07_caixa_confirmacao_lista.png ·", page.url)
+
+        doc_link = page.locator("a[href^='/app/caixa-de-confirmacao/']").first
+        doc_href = doc_link.get_attribute("href")
+        if doc_href:
+            page.goto(f"http://localhost:3000{doc_href}", wait_until="networkidle", timeout=20000)
+            page.wait_for_timeout(500)
+            page.screenshot(path=str(OUT / "08_caixa_confirmacao_detalhe.png"), full_page=True)
+            print("captured: 08_caixa_confirmacao_detalhe.png ·", page.url)
+
         browser.close()
     print(f"\n== screenshots salvas em {OUT} ==")
 

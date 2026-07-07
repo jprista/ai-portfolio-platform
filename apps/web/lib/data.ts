@@ -36,6 +36,7 @@ export type PositionRow = {
   holder: string | null;
   value: string;
   confidence: string;
+  category: string | null;
 };
 
 export type MeetingDetail = {
@@ -71,7 +72,8 @@ export async function getMeetingDetail(orgId: string, meetingId: string): Promis
   const positions = (await sql`
     select i.name, i.kind, i.index_kind, i.maturity::text as maturity,
            coalesce(iss.name, '—') as issuer, h.display_name as holder,
-           ps.value::text as value, ps.confidence
+           ps.value::text as value, ps.confidence,
+           i.identifiers->>'category' as category
     from core.position_snapshots ps
     join core.accounts a on a.id = ps.account_id
     join core.instruments i on i.id = ps.instrument_id
@@ -96,6 +98,112 @@ export async function getMeetingDetail(orgId: string, meetingId: string): Promis
         }
       : null,
     positions,
+  };
+}
+
+export type PendingDocument = {
+  id: string;
+  family: string;
+  family_id: string;
+  kind: string;
+  status: string;
+  created_at: string;
+  n_positions: number;
+  total_value: string;
+  reconciled: boolean;
+};
+
+export async function getPendingExtractionCount(orgId: string): Promise<number> {
+  const rows = await sql`
+    select count(*)::int as n from core.source_documents
+    where org_id = ${orgId} and status = 'awaiting_confirmation'
+  `;
+  return rows[0]?.n ?? 0;
+}
+
+export async function getPendingExtractions(orgId: string): Promise<PendingDocument[]> {
+  const rows = await sql`
+    select d.id, d.kind, d.status, d.created_at, f.display_name as family, f.id as family_id,
+           eb.raw_output, eb.diffs
+    from core.source_documents d
+    join core.families f on f.id = d.family_id
+    join core.extraction_batches eb on eb.source_document_id = d.id
+    where d.org_id = ${orgId} and d.status = 'awaiting_confirmation'
+    order by d.created_at asc
+  `;
+  return rows.map((r) => {
+    const positions = (r.raw_output as { positions: { value: string }[] }).positions;
+    return {
+      id: r.id,
+      family: r.family,
+      family_id: r.family_id,
+      kind: r.kind,
+      status: r.status,
+      created_at: r.created_at,
+      n_positions: positions.length,
+      total_value: positions.reduce((acc, p) => acc + Number(p.value), 0).toFixed(2),
+      reconciled: (r.diffs as { reconciled: boolean }).reconciled,
+    };
+  });
+}
+
+export type ExtractionPosition = {
+  name: string; kind: string; issuer: string; value: string; confidence: string;
+  index_kind?: string; valuation_mode?: string; category?: string; note?: string;
+  contract_terms?: Record<string, string>;
+};
+
+export type ExtractionDetail = {
+  id: string;
+  family: string;
+  familyId: string;
+  storagePath: string;
+  status: string;
+  conta: string;
+  perfil: string;
+  custodiante: string;
+  referenceDate: string;
+  declaredTotal: string;
+  sumOfPositions: string;
+  reconciled: boolean;
+  accountId: string;
+  holderId: string;
+  positions: ExtractionPosition[];
+};
+
+export async function getExtractionDetail(orgId: string, documentId: string): Promise<ExtractionDetail | null> {
+  const rows = await sql`
+    select d.id, d.storage_path, d.status, f.display_name as family, f.id as family_id,
+           eb.raw_output, eb.diffs
+    from core.source_documents d
+    join core.families f on f.id = d.family_id
+    join core.extraction_batches eb on eb.source_document_id = d.id
+    where d.org_id = ${orgId} and d.id = ${documentId}
+  `;
+  if (!rows.length) return null;
+  const r = rows[0];
+  const raw = r.raw_output as {
+    conta: string; perfil: string; custodiante: string; reference_date: string;
+    patrimonio_total_declarado: string; account_id: string; holder_id: string;
+    positions: ExtractionPosition[];
+  };
+  const diffs = r.diffs as { sum_of_positions: string; reconciled: boolean };
+  return {
+    id: r.id,
+    family: r.family,
+    familyId: r.family_id,
+    storagePath: r.storage_path,
+    status: r.status,
+    conta: raw.conta,
+    perfil: raw.perfil,
+    custodiante: raw.custodiante,
+    referenceDate: raw.reference_date,
+    declaredTotal: raw.patrimonio_total_declarado,
+    sumOfPositions: diffs.sum_of_positions,
+    reconciled: diffs.reconciled,
+    accountId: raw.account_id,
+    holderId: raw.holder_id,
+    positions: raw.positions,
   };
 }
 
