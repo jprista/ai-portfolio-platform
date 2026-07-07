@@ -3,6 +3,7 @@ import { WorkspaceClient, type WorkspaceProps } from "@/components/workspace-cli
 import { requireOrg } from "@/lib/auth";
 import { getMeetingDetail, type PositionRow } from "@/lib/data";
 import { brl, pct } from "@/lib/format";
+import { buildAnalysis, getMacroSnapshot, getRadarCrossref } from "@/lib/analysis";
 
 export const dynamic = "force-dynamic";
 
@@ -177,6 +178,18 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
           `A carteira soma ${brl(out.total_value)}, com maior concentração em ${topClassLabel} (${topClassPct}). O motor identificou ${out.insights.length} ponto${out.insights.length !== 1 ? "s" : ""} de atenção${nAlta > 0 ? `, sendo ${nAlta} de severidade alta` : ""} — veja a aba Pontos de atenção para o detalhe completo, com origem em cada dado.`,
       };
 
+  const [macro, crossref] = await Promise.all([getMacroSnapshot(), getRadarCrossref(detail.positions)]);
+  const analise = buildAnalysis({
+    positions: detail.positions,
+    totalValue: out.total_value,
+    hasHistory,
+    returnPct: out.returns?.total_return_pct,
+    benchmarkMode: bench?.mode,
+    benchmarkValue: bench?.value,
+    macro,
+    crossref,
+  });
+
   const props: WorkspaceProps = {
     family: detail.family,
     dateLabel,
@@ -204,6 +217,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
     concentracoes,
     confMix: [...confCount.entries()].sort().map(([grade, count]) => ({ grade, count })),
     qa,
+    analise,
   };
 
   return <WorkspaceClient {...props} />;

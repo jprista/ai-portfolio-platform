@@ -3,6 +3,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Card, InsightCard, Seal, SectionTitle } from "@/components/ui";
+import type { AnalysisData } from "@/lib/analysis";
 
 export type WorkspaceProps = {
   family: string;
@@ -25,6 +26,13 @@ export type WorkspaceProps = {
   concentracoes: { label: string; value: string; note: string; bad: boolean }[];
   confMix: { grade: string; count: number }[];
   qa: { question: string; answer: string };
+  analise: AnalysisData;
+};
+
+const IMPACT_META: Record<AnalysisData["scenarios"][number]["impact"], { label: string; cls: string }> = {
+  favoravel: { label: "Favorável", cls: "bg-ok-soft text-ok" },
+  neutro: { label: "Neutro / misto", cls: "bg-navy-soft text-navy" },
+  desfavoravel: { label: "Desfavorável", cls: "bg-bad-soft text-bad" },
 };
 
 const JOURNEY: { key: string; label: string }[] = [
@@ -39,7 +47,7 @@ const NUM_RE = /(R\$\s?[\d.]+,\d{2}|\d{1,3}(?:\.\d{3})*,\d{2,4}\s?%|\d+,\d{2,4}\
 
 export function WorkspaceClient(p: WorkspaceProps) {
   const [drawer, setDrawer] = useState(false);
-  const [tab, setTab] = useState<"briefing" | "carteira" | "atencao">("briefing");
+  const [tab, setTab] = useState<"briefing" | "analise" | "carteira" | "atencao">("briefing");
   const currentIdx = JOURNEY.findIndex((j) => j.key === p.status);
 
   const Num = ({ children }: { children: ReactNode }) => (
@@ -110,6 +118,7 @@ export function WorkspaceClient(p: WorkspaceProps) {
           <div className="mb-4 flex gap-1 border-b border-hairline">
             {[
               { id: "briefing" as const, label: "Briefing" },
+              { id: "analise" as const, label: "Análise" },
               { id: "carteira" as const, label: "Carteira" },
               { id: "atencao" as const, label: `Pontos de atenção (${p.insights.length})` },
             ].map((t) => (
@@ -164,6 +173,155 @@ export function WorkspaceClient(p: WorkspaceProps) {
                 </div>
               </Card>
             </>
+          )}
+
+          {tab === "analise" && (
+            <div className="flex flex-col gap-6">
+              <Card className="p-6">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-gold">
+                  Leitura do gestor de patrimônio
+                </div>
+                <p className="text-[14px] leading-[1.75] text-ink/90">{withNums(p.analise.diagnosis)}</p>
+              </Card>
+
+              {p.analise.risks.length > 0 && (
+                <div>
+                  <SectionTitle>Riscos identificados</SectionTitle>
+                  <div className="flex flex-col gap-3">
+                    {p.analise.risks.map((r) => (
+                      <InsightCard key={r.title} severity={r.severity} title={r.title}>
+                        {withNums(r.detail)}
+                      </InsightCard>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {p.analise.opportunities.length > 0 && (
+                <div>
+                  <SectionTitle>Oportunidades</SectionTitle>
+                  <div className="flex flex-col gap-3">
+                    {p.analise.opportunities.map((o) => (
+                      <div key={o.title} className="relative overflow-hidden rounded-xl border border-hairline bg-surface p-4 pl-5 shadow-card">
+                        <span className="absolute inset-y-0 left-0 w-1 bg-ok" />
+                        <div className="text-[13.5px] font-semibold text-navy">{o.title}</div>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-ink/80">{withNums(o.detail)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <SectionTitle>Exposição a juros e inflação</SectionTitle>
+                  <Card className="p-4">
+                    <div className="space-y-2.5">
+                      {p.analise.exposure.map((e) => (
+                        <div key={e.bucket} className="flex items-center justify-between text-[12.5px]">
+                          <span className="text-ink/80">{e.bucket}</span>
+                          <span className="tnum text-muted">
+                            <Num>{e.value}</Num> <span className="text-faint">· {e.pct}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </div>
+                <div>
+                  <SectionTitle>Sensibilidade a cenários</SectionTitle>
+                  <Card className="p-4">
+                    <div className="divide-y divide-hairline">
+                      {p.analise.scenarios.map((s) => (
+                        <div key={s.label} className="py-2.5 first:pt-0 last:pb-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[12.5px] font-medium text-ink">{s.label}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${IMPACT_META[s.impact].cls}`}>
+                              {IMPACT_META[s.impact].label}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11.5px] leading-relaxed text-muted">{s.reading}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 border-t border-hairline pt-2.5 text-[10.5px] leading-relaxed text-faint">
+                      Leitura direcional a partir da composição atual — não substitui um teste de estresse quantitativo.
+                    </p>
+                  </Card>
+                </div>
+              </div>
+
+              {p.analise.macro && (
+                <div>
+                  <SectionTitle>Contexto macroeconômico</SectionTitle>
+                  <Card className="p-5">
+                    <div className="mb-3 flex flex-wrap items-baseline gap-x-6 gap-y-1.5">
+                      <span className="text-[13px]"><b className="text-navy">Selic</b> <span className="tnum">{p.analise.macro.selic}</span></span>
+                      <span className="text-[13px]"><b className="text-navy">IPCA 12m</b> <span className="tnum">{p.analise.macro.ipca}</span></span>
+                      <span className="text-[13px]"><b className="text-navy">Câmbio</b> <span className="tnum">{p.analise.macro.usd}</span></span>
+                      <span className="text-[11px] text-faint">fonte BCB/SGS · {p.analise.macro.asOf}</span>
+                    </div>
+                    <p className="text-[13px] leading-relaxed text-ink/85">{withNums(p.analise.macro.reading)}</p>
+                  </Card>
+                </div>
+              )}
+
+              <div>
+                <SectionTitle>Cruzamento com o Radar de Consenso</SectionTitle>
+                <Card className="p-5">
+                  {p.analise.consensus.convergence.length > 0 ? (
+                    <div className="mb-4">
+                      <div className="mb-2 text-[12px] font-semibold text-navy">Convergências na carteira</div>
+                      <div className="flex flex-col gap-2">
+                        {p.analise.consensus.convergence.map((c) => (
+                          <div key={c.ticker} className="flex items-start justify-between gap-3 text-[12.5px]">
+                            <span className="font-medium text-ink">{c.positionName}</span>
+                            <span className="text-right text-muted">
+                              {c.holders.map((h) => h.manager).join(" · ")}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mb-4 text-[12.5px] text-muted">Nenhuma posição desta carteira aparece nas casas brasileiras acompanhadas pelo Radar nesta análise.</p>
+                  )}
+                  {p.analise.consensus.ideas.length > 0 && (
+                    <div className="mb-4 border-t border-hairline pt-4">
+                      <div className="mb-2 text-[12px] font-semibold text-gold">Temas para a pauta — fora da carteira</div>
+                      <div className="flex flex-col gap-2">
+                        {p.analise.consensus.ideas.map((idea) => (
+                          <div key={idea.ticker} className="flex items-start justify-between gap-3 text-[12.5px]">
+                            <span className="font-medium text-ink">{idea.issuerName} <span className="text-faint">({idea.ticker})</span></span>
+                            <span className="text-right text-muted">{idea.holders.length} gestoras</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-[11px] leading-relaxed text-faint">
+                        Evidência de que várias gestoras acompanhadas carregam esses papéis — não é recomendação da plataforma; a decisão de trazer ao cliente é do profissional.
+                      </p>
+                    </div>
+                  )}
+                  <p className="border-t border-hairline pt-3 text-[11px] leading-relaxed text-faint">
+                    {p.analise.consensus.globalNote}
+                  </p>
+                </Card>
+              </div>
+
+              <div>
+                <SectionTitle>Recomendações para a pauta</SectionTitle>
+                <Card className="p-5">
+                  <ol className="list-decimal space-y-2.5 pl-4 text-[13px] leading-relaxed text-ink/85 marker:font-semibold marker:text-gold">
+                    {p.analise.recommendations.map((r, i) => <li key={i}>{withNums(r)}</li>)}
+                  </ol>
+                </Card>
+              </div>
+
+              <p className="text-[11px] leading-relaxed text-faint">
+                Análise gerada automaticamente a partir dos dados desta carteira e do Radar de Consenso — não constitui
+                recomendação de investimento. A decisão final é sempre do profissional responsável pela família.
+              </p>
+            </div>
           )}
 
           {tab === "atencao" && (
