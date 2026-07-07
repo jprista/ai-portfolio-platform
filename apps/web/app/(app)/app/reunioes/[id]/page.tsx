@@ -157,7 +157,7 @@ export default async function ReuniaoPage({ params }: { params: Promise<{ id: st
   }
 
   const agenda = out.narrative?.agenda ??
-    [...new Set(out.insights.map(agendaLineFor))].concat("Revisar objetivos e horizonte de investimento da família.");
+    [...new Set(out.insights.map(agendaLineFor))].concat("Revisar objetivos e horizonte de investimento do cliente.");
 
   const concentracoes = out.narrative?.concentrations ?? out.insights
     .filter((i) => i.detail.includes("FGC") || i.title.toLowerCase().includes("concentra"))

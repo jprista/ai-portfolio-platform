@@ -6,7 +6,7 @@ import { brl, dateBR } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function FamiliasPage() {
+export default async function ClientesPage() {
   const { orgId } = await requireOrg();
   const families = await getFamilies(orgId);
   const totalWealth = families.reduce((acc, f) => acc + Number(f.wealth), 0);
@@ -15,13 +15,13 @@ export default async function FamiliasPage() {
     <div className="mx-auto max-w-[1100px] px-10 py-9">
       <header className="mb-8 flex items-end justify-between">
         <div>
-          <h1 className="font-display text-[28px] tracking-tight text-navy">Famílias</h1>
+          <h1 className="font-display text-[28px] tracking-tight text-navy">Clientes</h1>
           <p className="mt-1 text-[13px] text-muted">
-            {families.length} famílias · {brl(totalWealth)} sob análise na plataforma
+            {families.length} clientes · {brl(totalWealth)} sob análise na plataforma
           </p>
         </div>
         <button className="rounded-full bg-navy px-5 py-2.5 text-[13px] font-medium text-white shadow-card transition-colors hover:bg-navy-deep">
-          Nova família
+          Adicionar cliente
         </button>
       </header>
 
@@ -30,7 +30,7 @@ export default async function FamiliasPage() {
         {families.map((f) => (
           <Card key={f.id} hover className="flex items-center gap-5 p-5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy-soft font-display text-[15px] text-navy">
-              {f.display_name.replace("Família ", "").slice(0, 2)}
+              {f.display_name.slice(0, 2)}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-3">

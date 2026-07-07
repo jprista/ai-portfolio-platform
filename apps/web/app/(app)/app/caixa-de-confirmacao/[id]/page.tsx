@@ -162,7 +162,7 @@ export default async function ExtractionDetailPage({ params }: { params: Promise
       <div className="mt-6 flex items-center justify-between">
         <p className="max-w-[480px] text-[11.5px] leading-relaxed text-faint">
           Confirmar cria as posições reais na plataforma, dispara uma nova análise no motor e vincula o
-          resultado à próxima reunião da família. A ação fica registrada na trilha de auditoria.
+          resultado à próxima reunião do cliente. A ação fica registrada na trilha de auditoria.
         </p>
         <div className="flex gap-3">
           <form action={rejectExtraction.bind(null, detail.id)}>

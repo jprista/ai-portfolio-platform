@@ -21,7 +21,7 @@ export default async function MesaDeReunioes() {
     weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo",
   });
 
-  const almeida = meetings.find((m) => m.family === "Família Almeida");
+  const almeida = meetings.find((m) => m.family === "Almeida");
 
   return (
     <div className="mx-auto max-w-[1240px] px-10 py-9">
@@ -124,8 +124,7 @@ export default async function MesaDeReunioes() {
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warn" />
                 <span className="flex-1 text-[12.5px] leading-relaxed text-ink/85">
                   Previdência FIE Zafira com selo{" "}
-                  <Seal grade="C" title="Confiança C — documento parseado, não reconciliado" /> (Família
-                  Almeida)
+                  <Seal grade="C" title="Confiança C — documento parseado, não reconciliado" /> (Almeida)
                 </span>
               </div>
             </Card>

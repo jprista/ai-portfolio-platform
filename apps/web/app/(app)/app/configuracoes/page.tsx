@@ -53,7 +53,7 @@ export default async function ConfiguracoesPage() {
               name="issuer_limit"
               defaultValue={Number(s.policy.issuer_concentration_limit_pct).toFixed(2).replace(".", ",")}
               suffix="% da carteira"
-              hint="Acima disso, o motor gera alerta de concentração da família."
+              hint="Acima disso, o motor gera alerta de concentração do cliente."
             />
             <Field
               label="Teto FGC por titular"

@@ -263,7 +263,7 @@ export function buildAnalysis(args: {
   if (bucketPct("caixa") > 12) {
     opportunities.push({
       title: "Caixa acima do usual parado em liquidez imediata",
-      detail: `${pct(bucketPct("caixa"))} da carteira está em liquidez D0. Vale confirmar com a família se há necessidade de curto prazo que justifique esse nível — caso não haja, é caixa que hoje rende CDI mas poderia estar alocado com um horizonte um pouco mais longo.`,
+      detail: `${pct(bucketPct("caixa"))} da carteira está em liquidez D0. Vale confirmar com o cliente se há necessidade de curto prazo que justifique esse nível — caso não haja, é caixa que hoje rende CDI mas poderia estar alocado com um horizonte um pouco mais longo.`,
     });
   }
 
@@ -271,7 +271,7 @@ export function buildAnalysis(args: {
   if (!hasForeignExposure && total > 0) {
     opportunities.push({
       title: "Nenhuma exposição em moeda estrangeira",
-      detail: "A carteira não tem BDRs, ETFs internacionais ou fundos com mandato global — 100% do risco é doméstico (Brasil e real). Não é necessariamente um problema, mas é uma decisão implícita que vale tornar explícita com a família: ela está confortável em concentrar todo o risco no ciclo econômico brasileiro?",
+      detail: "A carteira não tem BDRs, ETFs internacionais ou fundos com mandato global — 100% do risco é doméstico (Brasil e real). Não é necessariamente um problema, mas é uma decisão implícita que vale tornar explícita com o cliente: ele está confortável em concentrar todo o risco no ciclo econômico brasileiro?",
     });
   }
 
@@ -280,7 +280,7 @@ export function buildAnalysis(args: {
     if (under) {
       opportunities.push({
         title: "Momento natural para revisitar a tese da parcela de risco",
-        detail: "O período abaixo do CDI não é, por si só, um erro — mas é um bom gatilho de calendário para reconfirmar com a família se a tese original de cada fundo/posição de risco ainda se sustenta, em vez de deixar por inércia.",
+        detail: "O período abaixo do CDI não é, por si só, um erro — mas é um bom gatilho de calendário para reconfirmar com o cliente se a tese original de cada fundo/posição de risco ainda se sustenta, em vez de deixar por inércia.",
       });
     }
   }
@@ -356,20 +356,20 @@ export function buildAnalysis(args: {
   const diagnosis =
     `${goodParts.length > 0 ? `O que está bom: ${goodParts.join("; ")}. ` : ""}` +
     `${badParts.length > 0 ? `O que pede atenção: ${badParts.join("; ")}. ` : "Não há pontos de atenção estruturais nesta leitura — o trabalho agora é de manutenção, não de correção. "}` +
-    `Próximo passo natural: ${risks.length > 0 ? "tratar primeiro " + risks[0].title.toLowerCase() : "revisar com a família se a composição atual ainda reflete os objetivos e o horizonte declarados"}.`;
+    `Próximo passo natural: ${risks.length > 0 ? "tratar primeiro " + risks[0].title.toLowerCase() : "revisar com o cliente se a composição atual ainda reflete os objetivos e o horizonte declarados"}.`;
 
   // ------------------------------------------------------- recomendações
   const recommendations: string[] = [];
   if (risks.length > 0) recommendations.push(`Priorizar na pauta: ${risks[0].title.toLowerCase()}.`);
-  if (opportunities.length > 0) recommendations.push(opportunities[0].title + " — vale uma conversa dedicada com a família.");
+  if (opportunities.length > 0) recommendations.push(opportunities[0].title + " — vale uma conversa dedicada com o cliente.");
   if (crossref.ideas.length > 0) {
     const idea = crossref.ideas[0];
     recommendations.push(
-      `${idea.issuerName} (${idea.ticker}) está entre as posições mais recorrentes no Radar de Consenso (${idea.holders.length} gestoras acompanhadas) e não está na carteira da família — não é uma recomendação de compra, mas um tema com evidência suficiente para entrar na discussão.`,
+      `${idea.issuerName} (${idea.ticker}) está entre as posições mais recorrentes no Radar de Consenso (${idea.holders.length} gestoras acompanhadas) e não está na carteira do cliente — não é uma recomendação de compra, mas um tema com evidência suficiente para entrar na discussão.`,
     );
   }
   if (macroOut) recommendations.push("Usar o contexto macro atual (juro real elevado) para validar se o mix pós-fixado/prefixado/inflação ainda reflete a visão da casa para os próximos meses.");
-  recommendations.push("Registrar na ata da reunião qual destes pontos a família decidiu agir e qual decidiu conscientemente manter — isso também é uma decisão, e fica auditável.");
+  recommendations.push("Registrar na ata da reunião qual destes pontos o cliente decidiu agir e qual decidiu conscientemente manter — isso também é uma decisão, e fica auditável.");
 
   return {
     diagnosis,

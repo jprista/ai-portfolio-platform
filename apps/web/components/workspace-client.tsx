@@ -319,7 +319,7 @@ export function WorkspaceClient(p: WorkspaceProps) {
 
               <p className="text-[11px] leading-relaxed text-faint">
                 Análise gerada automaticamente a partir dos dados desta carteira e do Radar de Consenso — não constitui
-                recomendação de investimento. A decisão final é sempre do profissional responsável pela família.
+                recomendação de investimento. A decisão final é sempre do profissional responsável pelo cliente.
               </p>
             </div>
           )}

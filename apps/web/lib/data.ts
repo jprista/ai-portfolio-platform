@@ -22,7 +22,7 @@ export async function getMeetings(orgId: string): Promise<MeetingRow[]> {
     from core.meetings m
     join core.families f on f.id = m.family_id
     left join core.analysis_runs r on r.id = m.analysis_run_id
-    where m.org_id = ${orgId} and m.status <> 'cancelled'
+    where m.org_id = ${orgId} and m.status <> 'cancelled' and f.is_active
     order by m.scheduled_for asc
   `) as unknown as MeetingRow[];
 }

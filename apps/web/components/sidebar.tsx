@@ -9,7 +9,7 @@ export function Sidebar({ pendingCount = 0 }: { pendingCount?: number }) {
   const nav = [
     { label: "Mesa de Reuniões", href: "/app", match: (p: string) => p === "/app" || p.startsWith("/app/reunioes"), icon: IconCalendar },
     { label: "Radar de Consenso", href: "/app/radar", match: (p: string) => p.startsWith("/app/radar"), icon: IconRadar },
-    { label: "Famílias", href: "/app/familias", match: (p: string) => p.startsWith("/app/familias"), icon: IconUsers },
+    { label: "Clientes", href: "/app/clientes", match: (p: string) => p.startsWith("/app/clientes"), icon: IconUsers },
     { label: "Caixa de confirmação", href: "/app/caixa-de-confirmacao", match: (p: string) => p.startsWith("/app/caixa-de-confirmacao"), icon: IconInbox, badge: pendingCount || undefined },
     { label: "Configurações", href: "/app/configuracoes", match: (p: string) => p.startsWith("/app/configuracoes"), icon: IconSettings },
     { label: "Auditoria", href: "/app/auditoria", match: (p: string) => p.startsWith("/app/auditoria"), icon: IconShield },
