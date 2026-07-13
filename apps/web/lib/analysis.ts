@@ -113,27 +113,56 @@ export async function getRadarCrossref(positions: PositionRow[]): Promise<{
 
 const PRIVATE_CREDIT_KINDS = new Set(["cdb", "lci", "lca", "lc", "debenture", "coe"]);
 
-type Bucket = "posFixado" | "prefixado" | "inflacao" | "rendaVariavel" | "fii" | "multimercado" | "caixa" | "outros";
+export type Bucket = "posFixado" | "prefixado" | "inflacao" | "rendaVariavel" | "fii" | "multimercado" | "previdencia" | "caixa" | "outros";
 
-const BUCKET_LABEL: Record<Bucket, string> = {
+export const BUCKET_LABEL: Record<Bucket, string> = {
   posFixado: "Pós-fixado (CDI/Selic)",
   prefixado: "Prefixado",
   inflacao: "Inflação (IPCA+)",
   rendaVariavel: "Renda variável (ações/BDR/ETF)",
   fii: "Fundos imobiliários",
   multimercado: "Multimercado / alternativos",
+  previdencia: "Previdência",
   caixa: "Caixa",
   outros: "Não classificado",
 };
 
-function bucketOf(p: PositionRow): Bucket {
+// Fundos ('kind' = fund) não têm um indexador único — o mandato real vem do
+// `category` já capturado na confirmação de extração (quando existe) ou,
+// na falta dele, do próprio nome oficial do fundo (RF/DI/liquidez = renda
+// fixa; FIA/ações/dividendos = renda variável; FIM/multimercado/macro/long
+// short = multimercado). Nunca assumir "multimercado" por omissão sem checar
+// isso — foi um bug real: fundos de renda fixa (ex.: "XP Liquidez FIC RF REF
+// DI") estavam sendo contados como multimercado só por serem kind='fund'.
+const FUND_NAME_HINTS: { re: RegExp; bucket: Bucket }[] = [
+  { re: /a[cç][õo]es|\bfia\b|dividendos|equity/i, bucket: "rendaVariavel" },
+  { re: /multimercado|\bfim\b|long\s*short|macro|hedge/i, bucket: "multimercado" },
+  { re: /renda\s*fixa|\brf\b|\bdi\b|liquidez|cr[eé]dito|fidc|\bfirf\b/i, bucket: "posFixado" },
+];
+
+function bucketOfFund(p: PositionRow): Bucket {
+  const byCategory: Record<string, Bucket> = {
+    renda_fixa_pos: "posFixado",
+    renda_variavel: "rendaVariavel",
+    renda_fixa_inflacao: "inflacao",
+    multimercado: "multimercado",
+    caixa: "caixa",
+    previdencia: "previdencia",
+  };
+  if (p.category && byCategory[p.category]) return byCategory[p.category];
+  for (const { re, bucket } of FUND_NAME_HINTS) if (re.test(p.name)) return bucket;
+  return "multimercado";
+}
+
+export function bucketOf(p: PositionRow): Bucket {
   if (p.name.toLowerCase().includes("liquidez diária") || p.kind === "cash") return "caixa";
   if (p.kind === "equity" || p.kind === "etf" || p.kind === "bdr") return "rendaVariavel";
   if (p.kind === "fii") return "fii";
+  if (p.kind === "pension_fund") return "previdencia";
+  if (p.kind === "fund") return bucketOfFund(p);
   if (p.index_kind === "cdi_pct" || p.index_kind === "selic") return "posFixado";
   if (p.index_kind === "pre") return "prefixado";
   if (p.index_kind === "ipca_plus") return "inflacao";
-  if (p.kind === "fund" || p.kind === "pension_fund") return "multimercado";
   return "outros";
 }
 

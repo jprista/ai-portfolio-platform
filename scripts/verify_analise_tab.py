@@ -35,7 +35,7 @@ def main() -> None:
         page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
         page.on("pageerror", lambda exc: errors.append(str(exc)))
 
-        page.goto("http://localhost:3000/app/familias", wait_until="networkidle", timeout=20000)
+        page.goto("http://localhost:3000/app/clientes", wait_until="networkidle", timeout=20000)
         links = page.locator("a[href^='/app/reunioes/']")
         n = links.count()
         print(f"famílias com link direto para reunião: {n}")
