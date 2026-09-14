@@ -30,6 +30,7 @@ from b3setups.bars import split_sessions  # noqa: E402
 from b3setups.engine import ExecConfig, run  # noqa: E402
 from b3setups.setups import (  # noqa: E402
     BollingerReversion,
+    Confluencia,
     DidiAgulhada,
     IFR2,
     Setup91,
@@ -62,7 +63,13 @@ def build_family() -> list:
     for mult in (2.0, 2.5):
         base.append(BollingerReversion(mult=mult))
     base.append(DidiAgulhada())
-    return base + [VwapFiltered(s) for s in base]
+    # Confluencia already carries its own VWAP layer and cost gate, so it is
+    # added after the wrapper rather than being wrapped a second time.
+    combos = base + [VwapFiltered(s) for s in base]
+    for threshold in (35.0, 45.0, 55.0):
+        combos.append(Confluencia(threshold=threshold))
+    combos.append(Confluencia(use_cost_gate=False))
+    return combos
 
 
 def main() -> int:

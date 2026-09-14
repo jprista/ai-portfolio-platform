@@ -1,0 +1,259 @@
+//======================================================================
+//  CONFLUENCIA B3  -  WIN / WDO
+//  Indicador de contexto por confluencia, para Profit (NTSL)
+//----------------------------------------------------------------------
+//  O QUE ELE E:  um placar de -100 a +100 que soma as cinco camadas que
+//  a comunidade brasileira de minicontrato mais usa, na proporcao em que
+//  elas aparecem nas fontes, mais um filtro de custo.
+//
+//  O QUE ELE NAO E:  um gerador de sinal com vantagem comprovada. Placar
+//  alto significa "as ferramentas concordam", nao "vai subir". Ver a nota
+//  de honestidade no fim deste arquivo.
+//
+//  COMPOSICAO (peso -> origem no levantamento)
+//    30  Tendencia   MME 9/21/50 alinhadas + inclinacao   (setups 9.x, Tabajara)
+//    25  Vies do dia Preco x VWAP da sessao               (consenso minicontrato)
+//    20  Forca       ADX com DI+ / DI-                    (metodo Pam Semezzato)
+//    15  Exaustao    IFR como FREIO, nunca como gatilho   (nao comprar esticado)
+//    10  Confirmacao Volume acima da media
+//   ---  Gate        ATR precisa pagar o custo da ida e volta
+//
+//  A regra que toda fonte seria repete: 2 a 3 indicadores COMPLEMENTARES,
+//  nunca empilhados. Por isso cada camada mede uma coisa diferente -
+//  direcao, posicao, forca, exaustao, participacao - e nenhuma repete outra.
+//======================================================================
+
+input
+  //--- Tendencia
+  PerRapida(9);
+  PerMedia(21);
+  PerLenta(50);
+  PesoTendencia(30);
+
+  //--- Vies do dia (VWAP da sessao)
+  PesoVWAP(25);
+
+  //--- Forca de tendencia
+  PerDI(14);
+  PerADX(14);
+  ADXMinimo(20);
+  ADXPleno(40);
+  PesoForca(20);
+
+  //--- Exaustao (freio)
+  PerIFR(14);
+  IFRAlto(70);
+  IFRBaixo(30);
+  PesoIFR(15);
+
+  //--- Confirmacao
+  PerVolume(20);
+  PesoVolume(10);
+
+  //--- Gate de custo  (WIN: 1 tick = 5 pontos. 1 tick de slippage por lado
+  //    + emolumentos ~ 10 a 12 pontos de ida e volta. WDO: 1 tick = 0,5 pt,
+  //    ida e volta ~ 2 pontos.)
+  PerATR(14);
+  CustoPontosIdaVolta(11);
+  MultiploMinimoATR(4);
+  UsarGateCusto(1);
+
+  //--- Leitura
+  Limiar(45);
+
+var
+  mmr      : Float;
+  mmm      : Float;
+  mml      : Float;
+  tp       : Float;
+  somaPV   : Float;
+  somaV    : Float;
+  vwap     : Float;
+  atrAtual : Float;
+  adxAtual : Float;
+  diMais   : Float;
+  diMenos  : Float;
+  ifrAtual : Float;
+  volMedia : Float;
+  sTend    : Float;
+  sVwap    : Float;
+  sForca   : Float;
+  dist     : Float;
+  placar   : Float;
+  gateOK   : Boolean;
+  atrMin   : Float;
+
+begin
+
+  //------------------------------------------------------------------
+  // 1. VWAP da sessao, acumulado na mao.
+  //    Reinicia a cada pregao: um VWAP que nao zera na abertura e outro
+  //    indicador, e para day trade nao quer dizer nada.
+  //------------------------------------------------------------------
+  if (Date <> Date[1]) then
+  begin
+    somaPV := 0;
+    somaV  := 0;
+  end;
+
+  tp     := (High + Low + Close) / 3;
+  somaPV := somaPV + (tp * Volume);
+  somaV  := somaV + Volume;
+
+  if (somaV > 0) then
+    vwap := somaPV / somaV
+  else
+    vwap := tp;
+
+  //------------------------------------------------------------------
+  // 2. Leitura dos componentes
+  //------------------------------------------------------------------
+  mmr      := MediaExp(PerRapida, Close);
+  mmm      := MediaExp(PerMedia, Close);
+  mml      := MediaExp(PerLenta, Close);
+  atrAtual := ATR(PerATR);
+  adxAtual := ADX(PerDI, PerADX);
+  diMais   := DIpos(PerDI);
+  diMenos  := DIneg(PerDI);
+  ifrAtual := IFR(PerIFR, Close);
+  volMedia := Media(PerVolume, Volume);
+
+  //------------------------------------------------------------------
+  // 3. TENDENCIA (-1 a +1): alinhamento das tres medias + inclinacao
+  //    da rapida. E a ideia do triple screen do Tabajara reduzida ao
+  //    essencial - tres horizontes concordando valem mais que um cruzamento.
+  //------------------------------------------------------------------
+  sTend := 0;
+
+  if (mmr > mmm) then sTend := sTend + 0.4;
+  if (mmr < mmm) then sTend := sTend - 0.4;
+
+  if (mmm > mml) then sTend := sTend + 0.3;
+  if (mmm < mml) then sTend := sTend - 0.3;
+
+  if (mmr > mmr[1]) then sTend := sTend + 0.3;
+  if (mmr < mmr[1]) then sTend := sTend - 0.3;
+
+  //------------------------------------------------------------------
+  // 4. VIES DO DIA (-1 a +1): distancia ate o VWAP, medida em ATR.
+  //    Em ATR e nao em pontos porque 200 pontos acima do VWAP e muito
+  //    num dia parado e pouco num dia de Copom.
+  //------------------------------------------------------------------
+  if (atrAtual > 0) then
+    dist := (Close - vwap) / atrAtual
+  else
+    dist := 0;
+
+  sVwap := dist;
+  if (sVwap > 1) then sVwap := 1;
+  if (sVwap < -1) then sVwap := -1;
+
+  //------------------------------------------------------------------
+  // 5. FORCA (-1 a +1): o ADX da a intensidade, o DI da a direcao.
+  //    ADX abaixo do minimo = mercado lateral = componente zerado.
+  //------------------------------------------------------------------
+  sForca := 0;
+
+  if (adxAtual > ADXMinimo) and (ADXPleno > ADXMinimo) then
+  begin
+    sForca := (adxAtual - ADXMinimo) / (ADXPleno - ADXMinimo);
+    if (sForca > 1) then sForca := 1;
+    if (diMenos > diMais) then sForca := -sForca;
+  end;
+
+  //------------------------------------------------------------------
+  // 6. PLACAR BASE (-75 a +75)
+  //------------------------------------------------------------------
+  placar := (PesoTendencia * sTend)
+          + (PesoVWAP * sVwap)
+          + (PesoForca * sForca);
+
+  //------------------------------------------------------------------
+  // 7. EXAUSTAO e CONFIRMACAO.
+  //    O IFR entra como FREIO, nunca como gatilho: ele so tira nota de
+  //    quem ja esta esticado na direcao do proprio placar. Usar IFR para
+  //    entrar contra uma tendencia forte e o erro classico do iniciante.
+  //------------------------------------------------------------------
+  if (placar > 0) then
+  begin
+    if (ifrAtual > IFRAlto) then placar := placar - PesoIFR;
+    if (Volume > volMedia) then placar := placar + PesoVolume;
+  end;
+
+  if (placar < 0) then
+  begin
+    if (ifrAtual < IFRBaixo) then placar := placar + PesoIFR;
+    if (Volume > volMedia) then placar := placar - PesoVolume;
+  end;
+
+  //------------------------------------------------------------------
+  // 8. GATE DE CUSTO - a camada que nenhum indicador de confluencia tem.
+  //    No WIN a ida e volta custa cerca de 11 pontos entre slippage e
+  //    emolumentos. Se o ATR nao for multiplas vezes isso, nao existe
+  //    movimento no grafico que pague a operacao, por melhor que esteja
+  //    o placar. O indicador diz isso na cara em vez de deixar voce
+  //    descobrir no extrato.
+  //------------------------------------------------------------------
+  atrMin := MultiploMinimoATR * CustoPontosIdaVolta;
+  gateOK := True;
+
+  if (UsarGateCusto = 1) and (atrAtual < atrMin) then
+    gateOK := False;
+
+  //------------------------------------------------------------------
+  // 9. Plotagem
+  //------------------------------------------------------------------
+  Plot(placar);
+  Plot2(Limiar);
+  Plot3(-Limiar);
+  Plot4(0);
+
+  SetPlotColor(2, clGray);
+  SetPlotColor(3, clGray);
+  SetPlotColor(4, clGray);
+
+  if (gateOK = False) then
+    // Cinza: o mercado nao esta pagando o pedagio. Nao opere pelo placar.
+    SetPlotColor(1, clSilver)
+  else if (placar >= Limiar) then
+    SetPlotColor(1, clGreen)
+  else if (placar <= -Limiar) then
+    SetPlotColor(1, clRed)
+  else
+    SetPlotColor(1, clGray);
+
+end;
+
+//======================================================================
+//  COMO LER
+//
+//  Verde acima do limiar   as cinco camadas concordam na compra
+//  Vermelho abaixo         as cinco camadas concordam na venda
+//  Cinza claro             ATR nao paga o custo -> nao ha o que operar
+//  Cinza escuro            sem confluencia -> fora
+//
+//  O cinza claro e o estado mais util do indicador. Ele aparece em
+//  mercado morto, que e exatamente quando o operador de varejo mais
+//  força barra e mais entrega dinheiro em corretagem e spread.
+//
+//----------------------------------------------------------------------
+//  NOTA DE HONESTIDADE  (leia antes de operar isto)
+//
+//  Este indicador organiza contexto. Ele NAO tem vantagem demonstrada.
+//
+//  O backtest que acompanha este repositorio mediu que, rodando 104
+//  variantes dos setups mais citados sobre series construidas para NAO
+//  ter vantagem nenhuma, a busca sozinha fabrica cerca de R$ 27,58 por
+//  sessao de lucro inexistente, e 59 das 104 variantes ficam positivas
+//  depois dos custos. Ou seja: um placar bonito num backtest e o
+//  resultado esperado do procedimento, nao evidencia de nada.
+//
+//  Antes de operar isto com dinheiro, rode o gemeo em Python
+//  (b3setups/setups.py -> Confluencia) sobre os SEUS dados de WIN e veja
+//  se ele passa do nulo calibrado do placebo. Se nao passar, voce tem um
+//  painel bonito - o que ja vale alguma coisa para nao operar mercado
+//  morto, e nao vale nada como promessa de lucro.
+//
+//  E o estudo da FGV-EESP encomendado pela CVM continua valendo: entre
+//  quem persistiu 300+ pregoes no mini indice, 97% perderam dinheiro.
+//======================================================================

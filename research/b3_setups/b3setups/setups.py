@@ -341,3 +341,168 @@ class VwapFiltered(Setup):
             elif e.side == SHORT and bars[i].close > vv:
                 p.entries[i] = None
         return p
+
+
+# --------------------------------------------------------------------------
+# Confluencia B3 — the Python twin of profit/ConfluenciaB3.ntsl
+# --------------------------------------------------------------------------
+
+
+def confluence_score(
+    bars: list[Bar],
+    fast: int = 9,
+    mid: int = 21,
+    slow: int = 50,
+    di_period: int = 14,
+    adx_period: int = 14,
+    adx_min: float = 20.0,
+    adx_full: float = 40.0,
+    rsi_period: int = 14,
+    rsi_high: float = 70.0,
+    rsi_low: float = 30.0,
+    vol_period: int = 20,
+    atr_period: int = 14,
+    w_trend: float = 30.0,
+    w_vwap: float = 25.0,
+    w_force: float = 20.0,
+    w_rsi: float = 15.0,
+    w_volume: float = 10.0,
+) -> tuple[list[float | None], list[float | None]]:
+    """Score in [-100, +100] plus the ATR series, mirroring the NTSL indicator.
+
+    Five complementary layers, weighted as they appear in the sources — trend,
+    day bias, strength, exhaustion, participation. The RSI is deliberately a
+    brake, never a trigger: it only deducts from a score that is already
+    stretched in its own direction.
+
+    Kept byte-for-byte equivalent in behaviour to the NTSL version so the
+    indicator a trader watches and the rules a backtest scores are the same
+    thing. If one changes, change both.
+    """
+    n = len(bars)
+    closes = _closes(bars)
+    volumes = [b.volume for b in bars]
+
+    e_fast = ind.ema(closes, fast)
+    e_mid = ind.ema(closes, mid)
+    e_slow = ind.ema(closes, slow)
+    vwap = ind.session_vwap(bars)
+    a = ind.atr(bars, atr_period)
+    r = ind.rsi(closes, rsi_period)
+    v_avg = ind.sma(volumes, vol_period)
+    di_p, di_m, adx_v = ind.adx(bars, di_period)
+
+    scores: list[float | None] = [None] * n
+    for i in range(1, n):
+        ef, em, es = e_fast[i], e_mid[i], e_slow[i]
+        av, rv, vm = a[i], r[i], v_avg[i]
+        vw = vwap[i]
+        if None in (ef, em, es, av, rv, vm, vw) or ef is None or e_fast[i - 1] is None:
+            continue
+        assert ef is not None and em is not None and es is not None
+        assert av is not None and rv is not None and vm is not None and vw is not None
+        prev_fast = e_fast[i - 1]
+        assert prev_fast is not None
+
+        # 1. Trend: three horizons agreeing, plus the fast average's slope.
+        s_trend = 0.0
+        if ef > em:
+            s_trend += 0.4
+        elif ef < em:
+            s_trend -= 0.4
+        if em > es:
+            s_trend += 0.3
+        elif em < es:
+            s_trend -= 0.3
+        if ef > prev_fast:
+            s_trend += 0.3
+        elif ef < prev_fast:
+            s_trend -= 0.3
+
+        # 2. Day bias: distance to VWAP measured in ATR, clipped.
+        s_vwap = ((closes[i] - vw) / av) if av > 0 else 0.0
+        s_vwap = max(-1.0, min(1.0, s_vwap))
+
+        # 3. Strength: ADX gives magnitude, DI gives sign. Below adx_min the
+        #    market is ranging and the component contributes nothing.
+        s_force = 0.0
+        adx_i, dip, dim = adx_v[i], di_p[i], di_m[i]
+        if adx_i is not None and dip is not None and dim is not None:
+            if adx_i > adx_min and adx_full > adx_min:
+                s_force = min(1.0, (adx_i - adx_min) / (adx_full - adx_min))
+                if dim > dip:
+                    s_force = -s_force
+
+        score = w_trend * s_trend + w_vwap * s_vwap + w_force * s_force
+
+        # 4/5. Exhaustion brake and volume confirmation.
+        if score > 0:
+            if rv > rsi_high:
+                score -= w_rsi
+            if volumes[i] > vm:
+                score += w_volume
+        elif score < 0:
+            if rv < rsi_low:
+                score += w_rsi
+            if volumes[i] > vm:
+                score -= w_volume
+
+        scores[i] = score
+    return scores, a
+
+
+class Confluencia(Setup):
+    """Trades the confluence score: enter when it crosses the threshold, with
+    the cost gate vetoing sessions too quiet to pay the round trip.
+
+    ``cost_points_round_trip`` is the friction in index points — for WIN, one
+    tick of slippage per side plus emolumentos is about 11 points. The gate
+    refuses a signal whenever ATR is below ``atr_multiple`` times that, because
+    below it there is no move on the chart large enough to cover the ticket.
+    """
+
+    def __init__(
+        self,
+        threshold: float = 45.0,
+        atr_stop: float = 1.5,
+        cost_points_round_trip: float = 11.0,
+        atr_multiple: float = 4.0,
+        use_cost_gate: bool = True,
+        allow_short: bool = True,
+    ):
+        self.threshold = threshold
+        self.atr_stop = atr_stop
+        self.cost_points_round_trip = cost_points_round_trip
+        self.atr_multiple = atr_multiple
+        self.use_cost_gate = use_cost_gate
+        self.allow_short = allow_short
+        gate = f",gate{atr_multiple:g}x" if use_cost_gate else ",nogate"
+        self.name = f"Confluencia(lim{threshold:g},stop{atr_stop:g}atr{gate}{',L' if not allow_short else ''})"
+
+    def plan(self, bars: list[Bar], contract: Contract) -> Plan:
+        p = Plan.blank(len(bars))
+        scores, a = confluence_score(bars)
+        atr_min = self.atr_multiple * self.cost_points_round_trip
+        half = self.threshold / 2.0
+
+        for i in range(1, len(bars)):
+            s, prev_s, av = scores[i], scores[i - 1], a[i]
+            if s is None or av is None or av <= 0:
+                continue
+
+            # Losing confluence closes the position, independently of the gate.
+            p.exit_long[i] = s < half
+            p.exit_short[i] = s > -half
+
+            if self.use_cost_gate and av < atr_min:
+                continue  # the market is not paying the toll today
+            if prev_s is None:
+                continue
+
+            # Cross of the threshold, not merely sitting above it: entering on
+            # a level already held for twenty bars is entering late.
+            if s >= self.threshold and prev_s < self.threshold:
+                p.entries[i] = Entry(LONG, None, bars[i].close - self.atr_stop * av, valid_bars=1)
+            elif self.allow_short and s <= -self.threshold and prev_s > -self.threshold:
+                p.entries[i] = Entry(SHORT, None, bars[i].close + self.atr_stop * av, valid_bars=1)
+        return p
