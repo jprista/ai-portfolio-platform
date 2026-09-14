@@ -103,6 +103,22 @@ zero_vol = [bar("2026-03-02T09:05", 10, 11, 9, 10, 0.0), bar("2026-03-02T09:10",
 vz = ind.session_vwap(zero_vol)
 check("vwap zero-vol[1]", vz[1], 10.5)
 
+# --- VWAP must RESET at a session boundary, exactly as the NTSL version does
+#     on Date <> Date[1]. Day 2's first bar must equal that bar's typical price,
+#     not a value carried over from day 1.
+two_days = [
+    bar("2026-03-02T09:05", 10, 11, 9, 10, 100.0),
+    bar("2026-03-02T09:10", 10, 12, 10, 11, 100.0),
+    bar("2026-03-03T09:05", 20, 22, 18, 20, 100.0),
+    bar("2026-03-03T09:10", 20, 24, 20, 22, 100.0),
+]
+v2 = ind.session_vwap(two_days)
+check("vwap day1 bar2", v2[1], 10.5)
+# day 2 bar 1: typical = (22+18+20)/3 = 20.0 -> VWAP must be exactly 20.0
+check("vwap resets on new session", v2[2], 20.0)
+# day 2 bar 2: typical = (24+20+22)/3 = 22.0 -> (20*100 + 22*100)/200 = 21.0
+check("vwap day2 bar2", v2[3], 21.0)
+
 # --- ADX on a clean uptrend: +DI must dominate -DI once defined
 up_bars = [bar(f"2026-03-02T{9 + i // 12:02d}:{(i * 5) % 60:02d}", 100 + i, 102 + i, 99 + i, 101 + i) for i in range(60)]
 pdi, mdi, adx_v = ind.adx(up_bars, 14)

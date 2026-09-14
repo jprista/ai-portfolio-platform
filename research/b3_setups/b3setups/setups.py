@@ -367,7 +367,8 @@ def confluence_score(
     w_force: float = 20.0,
     w_rsi: float = 15.0,
     w_volume: float = 10.0,
-) -> tuple[list[float | None], list[float | None]]:
+    return_components: bool = False,
+) -> tuple:
     """Score in [-100, +100] plus the ATR series, mirroring the NTSL indicator.
 
     Five complementary layers, weighted as they appear in the sources — trend,
@@ -378,6 +379,10 @@ def confluence_score(
     Kept byte-for-byte equivalent in behaviour to the NTSL version so the
     indicator a trader watches and the rules a backtest scores are the same
     thing. If one changes, change both.
+
+    With ``return_components`` a third list is returned carrying each bar's
+    per-layer contribution, so an explanation of the score is derived from the
+    same arithmetic that produces it rather than restated alongside it.
     """
     n = len(bars)
     closes = _closes(bars)
@@ -393,6 +398,7 @@ def confluence_score(
     di_p, di_m, adx_v = ind.adx(bars, di_period)
 
     scores: list[float | None] = [None] * n
+    parts: list[dict[str, float] | None] = [None] * n
     for i in range(1, n):
         ef, em, es = e_fast[i], e_mid[i], e_slow[i]
         av, rv, vm = a[i], r[i], v_avg[i]
@@ -436,18 +442,30 @@ def confluence_score(
         score = w_trend * s_trend + w_vwap * s_vwap + w_force * s_force
 
         # 4/5. Exhaustion brake and volume confirmation.
+        ifr_delta = 0.0
+        vol_delta = 0.0
         if score > 0:
             if rv > rsi_high:
-                score -= w_rsi
+                ifr_delta = -w_rsi
             if volumes[i] > vm:
-                score += w_volume
+                vol_delta = w_volume
         elif score < 0:
             if rv < rsi_low:
-                score += w_rsi
+                ifr_delta = w_rsi
             if volumes[i] > vm:
-                score -= w_volume
+                vol_delta = -w_volume
+        score += ifr_delta + vol_delta
 
         scores[i] = score
+        parts[i] = {
+            "tendencia": w_trend * s_trend,
+            "vwap": w_vwap * s_vwap,
+            "forca": w_force * s_force,
+            "ifr": ifr_delta,
+            "volume": vol_delta,
+        }
+    if return_components:
+        return scores, a, parts
     return scores, a
 
 

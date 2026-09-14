@@ -145,24 +145,34 @@ def atr(bars: list[Bar], period: int = 14) -> Series:
 
 
 def session_vwap(bars: list[Bar]) -> Series:
-    """Volume-weighted average price, anchored to the start of the series.
+    """Volume-weighted average price, reset at every session open.
 
-    Call this per session: VWAP that does not reset at the open is a
-    different (and, for day trade, meaningless) indicator.
+    VWAP that does not reset at the open is a different — and for day trade,
+    meaningless — indicator. The reset is driven by the bar's date, so this is
+    correct both when called with a single session and when called with a
+    continuous multi-session series, matching the NTSL implementation's
+    ``Date <> Date[1]`` test exactly.
 
     Falls back to a running average of typical price when the feed carries no
     volume, so an export without a volume column degrades rather than divides
-    by zero — the report flags when this happened.
+    by zero.
     """
     out: Series = [None] * len(bars)
     cum_pv = 0.0
     cum_v = 0.0
     cum_p = 0.0
+    n_in_session = 0
+    current: object = None
     for i, b in enumerate(bars):
+        if b.session != current:
+            current = b.session
+            cum_pv = cum_v = cum_p = 0.0
+            n_in_session = 0
         cum_pv += b.typical * b.volume
         cum_v += b.volume
         cum_p += b.typical
-        out[i] = (cum_pv / cum_v) if cum_v > 0 else (cum_p / (i + 1))
+        n_in_session += 1
+        out[i] = (cum_pv / cum_v) if cum_v > 0 else (cum_p / n_in_session)
     return out
 
 
