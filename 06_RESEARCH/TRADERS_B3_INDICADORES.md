@@ -254,7 +254,68 @@ Ninguém no topo atribui resultado a um indicador. Todos atribuem a **risco, con
 
 ---
 
-## 5. Lacunas honestas desta pesquisa
+## 5. O teste: quanto desse resultado é a própria busca?
+
+A seção 0 disse que este mapa descreve **o que se usa**, não **o que funciona**.
+O passo seguinte foi construir o instrumento que separa as duas coisas:
+[`research/b3_setups/`](../research/b3_setups/) — motor de backtest dos setups
+acima (9.1/9.2/9.3, IFR2, Bollinger+IFR, agulhada do Didi, filtro de VWAP),
+com custo realista da B3 e correção estatística.
+
+**Ainda não há resultado sobre WIN real.** A rede desta sessão bloqueia os
+provedores de cotação por política de egresso (403 no proxy), então o motor está
+pronto e testado, mas sem a série. O que já dá para afirmar veio de rodar o
+procedimento inteiro sobre **séries construídas para não ter edge nenhum**.
+
+### O que a calibração revelou
+
+| Medida | Valor | O que significa |
+|---|---|---|
+| Lucro fabricado pela busca | **~R$ 27,58/sessão** | Rodando 104 variantes sobre ruído puro e reportando a melhor |
+| Variantes positivas após custo | **59 de 104** | Em série sem edge algum |
+| Custo de ida e volta no WIN | **R$ 2,54/contrato** | Contra alvos típicos de 100 pontos (R$ 20) |
+| Resíduo do simulador | **~+1,3 tick/trade** | Ordem intrabarra é indeterminável em OHLC |
+
+O primeiro número é o mais importante. **Um backtest que não calibra isso está
+reportando R$ 27,58/sessão de lucro inexistente como se fosse vantagem.** É a
+forma concreta do problema de *data-snooping* citado na seção 0 — os tais
+14.630 testes sem significância.
+
+O quarto número é uma limitação honesta do método, não um defeito corrigível:
+em barras OHLC não se sabe se a mínima veio antes ou depois do gatilho. Toda
+convenção enviesa. Medimos, documentamos, travamos por teste e absorvemos no
+nulo — em vez de fingir que é zero.
+
+### Dois vieses encontrados durante a construção
+
+Ambos apareceram porque o motor foi validado contra um martingale **antes** de
+qualquer conclusão — e ambos produziam lucro convincente do nada:
+
+1. **Reabertura na mesma barra do fechamento.** A mesma máxima intrabarra
+   satisfazia dois alvos sequenciais. Com o 9.2, que gera sinal em quase toda
+   barra, isso encadeava: expectativa positiva em **20 de 20** séries sem edge.
+2. **Resíduo de ordenação intrabarra.** Avaliar o stop contra a barra inteira
+   joga os trades de risco pequeno para o balde de perda, deixando os
+   vencedores com risco médio maior.
+
+Vale registrar como o segundo foi isolado, porque é o método que importa: o
+controle de entrada aleatória com risco fixo deu taxa de acerto **0,3313** contra
+1/3 teórico — justo. Inverter todos os sinais produziu prejuízo simétrico, o que
+descartou artefato de saída. Foi o breakout puro, com **long e short ambos
+positivos**, que denunciou a origem estrutural.
+
+### O que isso muda na leitura do mapa
+
+Reforça a seção 4, por outro caminho. O motor tornou explícito que **custo e
+execução dominam o sinal de entrada** no minicontrato: R$ 2,54 de fricção por
+ida e volta contra alvos de R$ 20 é 12,7% do alvo consumido antes de qualquer
+acerto — e o parâmetro que mais muda a conclusão do backtest não é o período da
+média, é o slippage.
+
+Quando houver a série de WIN, a pergunta deixa de ser "deu lucro?" e passa a ser
+"passou do nulo calibrado?". Só a segunda tem resposta que significa algo.
+
+## 6. Lacunas honestas desta pesquisa
 
 Para não passar por completa o que não é:
 
@@ -275,9 +336,12 @@ Para não passar por completa o que não é:
 
 ---
 
-## 6. Se o objetivo for construir algo sobre isso
+## 7. Se o objetivo for construir algo sobre isso
 
 Dois caminhos, com honestidade sobre cada um:
+
+O motor da seção 5 já é o primeiro passo desse caminho: ele não prescreve setup,
+ele mede procedimento.
 
 **Caminho defensável — instrumentar, não prescrever.** O achado da seção 4 e o estudo da FGV
 apontam na mesma direção: o diferencial mensurável não está no sinal de entrada, está em
