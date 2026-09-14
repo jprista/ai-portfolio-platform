@@ -524,3 +524,109 @@ class Confluencia(Setup):
             elif self.allow_short and s <= -self.threshold and prev_s > -self.threshold:
                 p.entries[i] = Entry(SHORT, None, bars[i].close + self.atr_stop * av, valid_bars=1)
         return p
+
+
+class ConfluenciaSinal(Setup):
+    """Confluence score as an explicit entry signal, with a structural stop.
+
+    Answers "where do I buy, where do I sell" rather than "what is the market
+    doing". Three decisions define it:
+
+    **Where.** A cross of the score threshold, with the cost gate passing. A
+    cross rather than a level: entering on a threshold already held for twenty
+    bars is entering late.
+
+    **The stop.** The nearest structural invalidation — the swing low under a
+    long, the swing high over a short, one tick beyond — rather than a fixed
+    ATR multiple. That is the smallest stop the chart actually justifies: below
+    the swing, the reason for the trade is gone.
+
+    **The clamp.** The structural stop is then held inside
+    ``[min_risk_ticks, max_risk_ticks]``. The floor is not risk aversion, it is
+    arithmetic: round-trip friction is a fixed ~11 points in WIN, so as the
+    stop shrinks the cost eats a rising share of a target that shrinks with it.
+    At a 2.5R target the break-even hit rate is ``(R + cost) / (3.5 * R)`` —
+    31.7% at R=100 points but 60% at R=10, against the ~28.6% that the geometry
+    alone gives. Shrinking the stop does not make the trade cheaper; it makes
+    the edge you need larger. ``min_risk_ticks`` is where that stops being
+    worth it, and ``replay.py`` measures it rather than assuming it.
+
+    The engine derives the target from the realised fill, so the reward really
+    is ``reward_r`` times the risk actually taken, not the risk hoped for.
+    """
+
+    def __init__(
+        self,
+        threshold: float = 45.0,
+        swing_lookback: int = 5,
+        min_risk_ticks: int = 8,
+        max_risk_ticks: int = 40,
+        reward_r: float = 2.5,
+        cost_points_round_trip: float = 11.0,
+        atr_multiple: float = 4.0,
+        use_cost_gate: bool = True,
+        allow_short: bool = True,
+    ):
+        self.threshold = threshold
+        self.swing_lookback = swing_lookback
+        self.min_risk_ticks = min_risk_ticks
+        self.max_risk_ticks = max_risk_ticks
+        self.reward_r = reward_r
+        self.cost_points_round_trip = cost_points_round_trip
+        self.atr_multiple = atr_multiple
+        self.use_cost_gate = use_cost_gate
+        self.allow_short = allow_short
+        gate = f",gate{atr_multiple:g}x" if use_cost_gate else ",nogate"
+        self.name = (
+            f"Sinal(lim{threshold:g},sw{swing_lookback},"
+            f"R{min_risk_ticks}-{max_risk_ticks}t,alvo{reward_r:g}R{gate}"
+            f"{',L' if not allow_short else ''})"
+        )
+
+    def plan(self, bars: list[Bar], contract: Contract) -> Plan:
+        p = Plan.blank(len(bars))
+        scores, a = confluence_score(bars)
+        atr_min = self.atr_multiple * self.cost_points_round_trip
+        tick = contract.tick_size
+        half = self.threshold / 2.0
+        lb = self.swing_lookback
+
+        for i in range(1, len(bars)):
+            s, prev_s, av = scores[i], scores[i - 1], a[i]
+            if s is None or av is None or av <= 0:
+                continue
+
+            # Losing the confluence closes the position regardless of the gate.
+            p.exit_long[i] = s < half
+            p.exit_short[i] = s > -half
+
+            if self.use_cost_gate and av < atr_min:
+                continue
+            if prev_s is None or i < lb:
+                continue
+
+            ref = bars[i].close
+            window = bars[i - lb + 1 : i + 1]
+
+            if s >= self.threshold and prev_s < self.threshold:
+                stop = min(b.low for b in window) - tick
+                stop = self._clamp(ref, stop, tick, LONG)
+                if stop < ref:
+                    p.entries[i] = Entry(LONG, None, stop, valid_bars=1)
+            elif self.allow_short and s <= -self.threshold and prev_s > -self.threshold:
+                stop = max(b.high for b in window) + tick
+                stop = self._clamp(ref, stop, tick, SHORT)
+                if stop > ref:
+                    p.entries[i] = Entry(SHORT, None, stop, valid_bars=1)
+        return p
+
+    def _clamp(self, ref: float, stop: float, tick: float, side: int) -> float:
+        """Hold the structural stop inside the viable risk band."""
+        risk_ticks = abs(ref - stop) / tick
+        if risk_ticks < self.min_risk_ticks:
+            risk_ticks = self.min_risk_ticks
+        elif risk_ticks > self.max_risk_ticks:
+            risk_ticks = self.max_risk_ticks
+        else:
+            return stop
+        return ref - risk_ticks * tick if side == LONG else ref + risk_ticks * tick

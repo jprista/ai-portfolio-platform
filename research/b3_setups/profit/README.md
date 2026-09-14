@@ -116,3 +116,77 @@ promessa de lucro.
 
 E o estudo da FGV-EESP encomendado pela CVM continua valendo: entre quem
 persistiu 300+ pregões no mini índice, **97% perderam dinheiro**.
+
+---
+
+# ConfluenciaSinais.ntsl — onde comprar e onde vender
+
+O `ConfluenciaB3.ntsl` acima é um painel de contexto. Este segundo arquivo é o
+que dá **entrada, stop e alvo na tela**. Aplique-o **sobre o gráfico** (não num
+subgráfico).
+
+| Barra | Significado |
+|---|---|
+| Verde forte | sinal de **compra** nesta barra |
+| Vermelha | sinal de **venda** nesta barra |
+| Esverdeada / vinho | operação em andamento |
+| Cinza | ATR não paga o custo — nada a operar |
+
+| Linha | |
+|---|---|
+| Branca | preço de entrada |
+| Vermelha | stop |
+| Verde | alvo — sempre **2,5× o risco realmente assumido** |
+
+Fora de operação as três linhas colapsam no preço, então a tela só "abre"
+quando existe trade.
+
+O sinal nasce no **fechamento** da barra marcada; a entrada real é na abertura
+da seguinte. É assim que o backtest mede, para não se dar um preço que não
+existia quando a decisão foi tomada.
+
+## O stop: estrutural, com teto
+
+O stop vai na **mínima das últimas `SwingBarras`** (compra) ou na máxima (venda),
+um tick além. Esse é o menor stop que o gráfico justifica — abaixo dele o motivo
+do trade deixou de existir.
+
+Para apertá-lo você mexe em **`RiscoMaxTicks`**, o teto. E aqui está a aritmética
+que decide o valor default:
+
+> A ida e volta custa **~11 pontos no WIN, fixo**. Com alvo de 2,5R o acerto
+> necessário é `(R + 11) / (3,5 × R)`.
+
+| Risco | Acerto necessário | | Risco | Acerto necessário |
+|---:|---:|---|---:|---:|
+| 250 pts | 29,8% | | 50 pts | **35,0%** |
+| 100 pts | 31,7% | | 40 pts | 36,5% |
+| 70 pts | 33,2% | | 20 pts | 44,4% |
+
+A geometria de um alvo 2,5R entrega **28,6%** sozinha. Ou seja: **apertar o stop
+não deixa o trade mais barato — deixa a vantagem que você precisa ter maior.**
+
+Por isso `RiscoMaxTicks` vem em **10 (= 50 pontos)**: é o stop mais apertado que
+ainda cabe em 35% de acerto. Aperte mais por sua conta, sabendo o que passa a ser
+exigido.
+
+## Validando com replay
+
+```bash
+python3 run_replay.py --csv SEU_WIN_5min.csv --contract WIN
+```
+
+Três relatórios:
+
+1. **Varredura de stop** — roda o mesmo sinal em vários tetos e mostra, para
+   cada um, o acerto realizado contra o acerto exigido. A coluna "precisa" é
+   aritmética exata e não depende do dado.
+2. **Walk-forward** — divide o histórico em blocos cronológicos. Positivo em um
+   bloco de cinco não é estratégia, é sorte concentrada.
+3. **Nulo calibrado** — o mesmo sinal sobre séries sem vantagem nenhuma.
+
+Ajuste a meta de acerto que você considera alcançável com `--plausible-hit 0.35`.
+O motor devolve o teto mais apertado que cabe nela.
+
+**Se o walk-forward não for positivo na maioria dos blocos, ou se o placebo
+devolver p ≥ 0,05, o que você tem é um painel bonito — não uma vantagem.**
