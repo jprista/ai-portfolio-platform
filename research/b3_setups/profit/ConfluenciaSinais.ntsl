@@ -10,6 +10,11 @@
 //  menor stop que o grafico justifica - abaixo dele o motivo do trade
 //  deixou de existir.
 //
+//  SairPorConfluencia VEM DESLIGADO POR MEDICAO. Quando ligado, a posicao
+//  saia antes de 1R ou do stop resolverem - pagando o custo inteiro por um
+//  trade que nunca chegou a ser decidido. Desligar levou as posicoes no verde
+//  de 41,5% para 48,3% e a sangria de -4,79 para -4,06 por posicao.
+//
 //  DUAS COISAS QUE MUDARAM DEPOIS DE MEDIR, e que atacam a queixa de
 //  "esta dando mais stop do que gain":
 //
@@ -72,13 +77,17 @@ input
   StopMinimoATR(1.0);    // o stop TEM de cobrir pelo menos 1 ATR - ver nota
   RiscoMinTicks(2);      // piso absoluto em ticks
   RiscoMaxTicks(60);     // teto de risco (controle de perda, nao aperto)
-  AlvoEmR(2.5);          // alvo = 2,5x o risco
-  ZeroAZeroEmR(1.0);     // ao andar 1R a favor, stop vai para a entrada
+  AlvoEmR(2.0);          // alvo = no minimo 2x o risco
+  ParcialEmR(1.0);       // realiza metade ao andar 1R a favor
+  ZeroAZeroEmR(1.0);     // e no mesmo ponto o stop vai para a entrada
+  SairPorConfluencia(0); // 0 = nao sair antes de 1R/stop. Ver nota.
   TamanhoTick(5);        // WIN = 5 pontos. WDO = 0.5
   PermitirVenda(1);
 
 var
   mmr, mmm, mml   : Float;
+  fezParcial      : Boolean;
+  nivelParcial    : Float;
   zerouRisco      : Boolean;
   nivelZeroAZero  : Float;
   riscoInicial    : Float;
@@ -188,13 +197,15 @@ begin
         // zero a zero: so depois de descartar o stop nesta barra. A ordem
         // dentro da barra e desconhecida, e supor que o lado bom veio antes
         // e a suposicao otimista que este codigo recusa em todo lugar.
+        if (ParcialEmR > 0) and (fezParcial = False) and (High >= nivelParcial) then
+          fezParcial := True;
         if (ZeroAZeroEmR > 0) and (zerouRisco = False) and (High >= nivelZeroAZero) then
         begin
           pStop := pEntrada;
           zerouRisco := True;
         end;
         if (High >= pAlvo) then emOperacao := 0
-        else if (placar < Limiar / 2) then emOperacao := 0;
+        else if (SairPorConfluencia = 1) and (placar < Limiar / 2) then emOperacao := 0;
       end;
     end
     else
@@ -202,13 +213,15 @@ begin
       if (High >= pStop) then emOperacao := 0
       else
       begin
+        if (ParcialEmR > 0) and (fezParcial = False) and (Low <= nivelParcial) then
+          fezParcial := True;
         if (ZeroAZeroEmR > 0) and (zerouRisco = False) and (Low <= nivelZeroAZero) then
         begin
           pStop := pEntrada;
           zerouRisco := True;
         end;
         if (Low <= pAlvo) then emOperacao := 0
-        else if (placar > -Limiar / 2) then emOperacao := 0;
+        else if (SairPorConfluencia = 1) and (placar > -Limiar / 2) then emOperacao := 0;
       end;
     end;
   end
@@ -253,6 +266,8 @@ begin
         sinalCompra := True;
         riscoInicial := risco;
         zerouRisco := False;
+        fezParcial := False;
+        nivelParcial := pEntrada + (ParcialEmR * risco);
         nivelZeroAZero := pEntrada + (ZeroAZeroEmR * risco);
       end
       else if (PermitirVenda = 1) then
@@ -272,6 +287,8 @@ begin
         sinalVenda := True;
         riscoInicial := risco;
         zerouRisco := False;
+        fezParcial := False;
+        nivelParcial := pEntrada - (ParcialEmR * risco);
         nivelZeroAZero := pEntrada - (ZeroAZeroEmR * risco);
       end;
     end;
@@ -286,12 +303,14 @@ begin
     Plot(pEntrada);
     Plot2(pStop);
     Plot3(pAlvo);
+    Plot4(nivelParcial);
   end
   else
   begin
     Plot(Close);
     Plot2(Close);
     Plot3(Close);
+    Plot4(Close);
   end;
 
   SetPlotColor(1, clWhite);
@@ -301,6 +320,11 @@ begin
   else
     SetPlotColor(2, clRed);
   SetPlotColor(3, clLime);
+  // parcial: ciano antes de realizar, apagado depois
+  if (emOperacao = 1) and (fezParcial = False) then
+    SetPlotColor(4, clAqua)
+  else
+    SetPlotColor(4, clGray);
 
   //--- a barra do sinal fica marcada; enquanto o trade corre, fica suave
   if (sinalCompra) then PaintBar(clLime)
@@ -325,7 +349,16 @@ end;
 //  Linha branca        preco de entrada
 //  Linha vermelha      stop
 //  Linha AMARELA       stop ja no zero a zero - risco fora da mesa
-//  Linha verde         alvo (2,5x o risco)
+//  Linha ciano         onde sai a PARCIAL (1R). Cinza depois de realizada
+//  Linha verde         alvo (2x o risco)
+//
+//  OPERACAO EM 2 CONTRATOS: metade sai na linha ciano (1R) e no mesmo ponto
+//  o stop vai para a entrada. A outra metade corre ate a linha verde (2R).
+//  Os tres desfechos possiveis de uma posicao:
+//
+//      stop antes de 1R        -1,0R
+//      1R -> parcial -> zero   +0,5R
+//      1R -> parcial -> 2R     +1,5R
 //
 //  O sinal nasce no FECHAMENTO da barra marcada. A entrada real e na
 //  abertura da barra seguinte - e assim que o backtest mede, para nao

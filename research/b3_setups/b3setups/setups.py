@@ -567,7 +567,9 @@ class ConfluenciaSinal(Setup):
         atr_multiple: float = 4.0,
         use_cost_gate: bool = True,
         allow_short: bool = True,
+        exit_on_confluence_loss: bool = True,
     ):
+        self.exit_on_confluence_loss = exit_on_confluence_loss
         self.threshold = threshold
         self.swing_lookback = swing_lookback
         self.min_risk_ticks = min_risk_ticks
@@ -600,8 +602,12 @@ class ConfluenciaSinal(Setup):
                 continue
 
             # Losing the confluence closes the position regardless of the gate.
-            p.exit_long[i] = s < half
-            p.exit_short[i] = s > -half
+            # Switchable because comparing entry quality against a control
+            # demands identical management on both sides; an exit the control
+            # cannot have would make the comparison measure the exit instead.
+            if self.exit_on_confluence_loss:
+                p.exit_long[i] = s < half
+                p.exit_short[i] = s > -half
 
             if self.use_cost_gate and av < atr_min:
                 continue
