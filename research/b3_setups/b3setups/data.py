@@ -167,6 +167,7 @@ def synthetic_sessions(
     start_price: float = 130_000.0,
     bar_sd_ticks: float = 24.0,
     minutes_per_bar: int = 5,
+    momentum: float = 0.0,
     substeps: int = 12,
     seed: int = 20260914,
     start_day: date = date(2026, 1, 5),
@@ -177,11 +178,23 @@ def synthetic_sessions(
     internally consistent and the intrabar path is realistic — an OHLC drawn
     independently would make stop and target fills meaningless.
 
-    There is no drift and no autocorrelation, so the true expected P&L of any
-    strategy here is negative once costs are charged. That is the point.
+    With ``momentum`` at zero there is no drift and no autocorrelation, so the
+    true expected P&L of any strategy here is negative once costs are charged.
+    That is the point of the control.
+
+    ``momentum`` injects an AR(1) coefficient into the BAR return series — a KNOWN,
+    dialled-in amount of trend persistence. It exists to answer the question
+    that has to precede any "no edge" verdict: would this test detect an edge
+    if one were there? A test that cannot find a planted edge cannot be trusted
+    when it reports none. Variance is held constant as momentum rises, so the
+    only thing changing is the predictability, not the volatility.
     """
     rng = random.Random(seed)
     step_sd = bar_sd_ticks / (substeps**0.5)
+    # Hold the unconditional variance fixed while phi grows, so the comparison
+    # isolates predictability from volatility.
+    innov_sd = step_sd * ((1.0 - momentum**2) ** 0.5) if momentum else step_sd
+    last_bar_return = 0.0
     price_ticks = contract.to_ticks(start_price)
     sessions: list[Session] = []
     day = start_day
@@ -192,9 +205,16 @@ def synthetic_sessions(
         bars: list[Bar] = []
         clock = datetime.combine(day, time(9, 0))
         for b in range(bars_per_session):
+            # Momentum is carried BAR to BAR, not step to step. Injecting it at
+            # the substep level washes out under aggregation — twelve substeps
+            # of AR(1) leave almost no bar-level autocorrelation, and bars are
+            # all the indicator can see. The previous bar's return becomes a
+            # drift spread across this bar's substeps.
+            drift = (momentum * last_bar_return / substeps) if momentum else 0.0
             path = [price_ticks]
             for _ in range(substeps):
-                path.append(path[-1] + round(rng.gauss(0.0, step_sd)))
+                path.append(path[-1] + round(rng.gauss(drift, innov_sd)))
+            last_bar_return = float(path[-1] - path[0])
             o, c = path[0], path[-1]
             hi, lo = max(path), min(path)
             # U-shaped session volume: heavy at the open and into the close.
