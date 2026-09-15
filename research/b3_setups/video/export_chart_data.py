@@ -14,11 +14,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from b3setups.contracts import WIN, CostModel, cents_to_brl
 from b3setups.data import synthetic_sessions
-from b3setups.engine import ExecConfig, run
+from b3setups.engine import ExecConfig, run, run_session
 from b3setups.replay import required_win_rate
 from b3setups.resample import resample, sessions_from, to_renko
 from b3setups.setups import ConfluenciaSinal, confluence_score
 from b3setups import indicators as ind
+
+def run_session_trades(day, warm, setup, costs):
+    """Replay exactly one session with its warm-up, as the engine does."""
+    return run_session(day, setup, WIN, costs, ExecConfig(target_r=REWARD), history=list(warm))
+
 
 COST_POINTS = 11.0
 COST_BRL = 2.54
@@ -89,6 +94,31 @@ def pack(label: str, kind: str, sessions, show_day_index: int = 1) -> dict:
          "c": round(b.close, 1), "v": round(b.volume)}
         for b in day.bars
     ]
+
+    # Trades of the drawn session, mapped onto bar indices so the viewer can
+    # fill a blotter as the replay advances. These come from the engine, not
+    # from a second simulation in the browser — the blotter shows what the
+    # backtest actually booked. Renko bricks can share a timestamp, so the map
+    # resolves to the first brick carrying it.
+    first_at: dict = {}
+    last_at: dict = {}
+    for i, b in enumerate(day.bars):
+        first_at.setdefault(b.ts, i)
+        last_at[b.ts] = i
+    day_trades = []
+    replayed = run_session_trades(day, warm, setup, costs)
+    for t in replayed:
+        ei = first_at.get(t.entry_ts)
+        xi = last_at.get(t.exit_ts)
+        if ei is None or xi is None:
+            continue
+        day_trades.append({
+            "entryBar": ei, "exitBar": xi, "side": t.side, "reason": t.reason,
+            "entry": round(WIN.to_price(t.entry_ticks), 1),
+            "exit": round(WIN.to_price(t.exit_ticks), 1),
+            "points": round(WIN.points(t.tick_delta), 1),
+            "net": round(t.net_cents / 100.0, 2),
+        })
     return {
         "label": label,
         "kind": kind,
@@ -98,6 +128,7 @@ def pack(label: str, kind: str, sessions, show_day_index: int = 1) -> dict:
         "vwap": [None if x is None else round(x, 1) for x in vwap[off:]],
         "ema9": [None if x is None else round(x, 1) for x in ema9[off:]],
         "signals": signals,
+        "trades": day_trades,
         "stats": {
             "barsPerSession": round(sum(len(s) for s in sessions) / len(sessions)),
             "signalsPerSession": round(per_session, 1),
