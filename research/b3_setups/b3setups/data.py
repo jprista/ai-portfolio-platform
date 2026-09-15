@@ -166,6 +166,7 @@ def synthetic_sessions(
     bars_per_session: int = 108,
     start_price: float = 130_000.0,
     bar_sd_ticks: float = 24.0,
+    minutes_per_bar: int = 5,
     substeps: int = 12,
     seed: int = 20260914,
     start_day: date = date(2026, 1, 5),
@@ -211,7 +212,7 @@ def synthetic_sessions(
                 )
             )
             price_ticks = c
-            clock += timedelta(minutes=5)
+            clock += timedelta(minutes=minutes_per_bar)
         sessions.append(Session(day=day, bars=bars))
         day += timedelta(days=1)
     return sessions

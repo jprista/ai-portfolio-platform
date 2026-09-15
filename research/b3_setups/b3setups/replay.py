@@ -134,9 +134,22 @@ def walk_forward(
     reward_r: float = 2.5,
     contracts: int = 1,
 ) -> list[Stats]:
-    """Sequential folds, in chronological order. No fold is reordered."""
+    """Sequential folds, in chronological order. No fold is reordered.
+
+    One continuous replay is partitioned by session rather than each fold being
+    replayed on its own. The rules are fixed — nothing is fitted per fold — so
+    re-running would only rob each fold of the warm-up history that a real
+    chart carries across its boundary, and would silently lose the trades that
+    cold start costs. Partitioning conserves every trade and keeps the folds
+    comparable to the whole.
+    """
     if n_folds < 1:
         raise ValueError("n_folds must be positive")
+    all_trades = run(sessions, setup, contract, costs, ExecConfig(target_r=reward_r, contracts=contracts))
+    by_day: dict[object, list[Trade]] = {}
+    for t in all_trades:
+        by_day.setdefault(t.session, []).append(t)
+
     size = max(1, len(sessions) // n_folds)
     out: list[Stats] = []
     for f in range(n_folds):
@@ -145,7 +158,7 @@ def walk_forward(
         chunk = sessions[lo:hi]
         if not chunk:
             continue
-        trades = run(chunk, setup, contract, costs, ExecConfig(target_r=reward_r, contracts=contracts))
+        trades = [t for s in chunk for t in by_day.get(s.day, [])]
         out.append(summarise(f"fold {f + 1}/{n_folds} ({len(chunk)} sessões)", trades, chunk))
     return out
 

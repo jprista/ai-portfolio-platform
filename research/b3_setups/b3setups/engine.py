@@ -108,10 +108,30 @@ def run_session(
     contract: Contract,
     costs: CostModel,
     cfg: ExecConfig,
+    history: list[Bar] | None = None,
 ) -> list[Trade]:
+    """Replay one session. ``history`` is the preceding bars, for warm-up only.
+
+    A real chart is continuous: an EMA50 on a 15-minute chart is warm at
+    Monday's open because it carries Friday with it. Scoring each session from
+    a cold start would make every higher timeframe look untradeable for the
+    first fifty bars — an artefact of the harness, not of the indicator. The
+    setup therefore sees history plus the session, and only the session's own
+    slice of the resulting plan is ever acted on. Session-anchored indicators
+    stay correct because ``session_vwap`` resets on the date, exactly as the
+    NTSL version does.
+    """
     bars = session.bars
     n = len(bars)
-    plan: Plan = setup.plan(bars, contract)
+    warm = list(history) if history else []
+    full = warm + bars
+    offset = len(warm)
+    plan_full: Plan = setup.plan(full, contract)
+    plan = Plan(
+        entries=plan_full.entries[offset:],
+        exit_long=plan_full.exit_long[offset:],
+        exit_short=plan_full.exit_short[offset:],
+    )
     cutoff = max(1, int(n * (1.0 - cfg.no_entry_last_frac)))
 
     trades: list[Trade] = []
@@ -239,8 +259,16 @@ def run(
     contract: Contract,
     costs: CostModel,
     cfg: ExecConfig,
+    warmup_bars: int = 200,
 ) -> list[Trade]:
+    """Replay every session in order, carrying warm-up history forward.
+
+    ``warmup_bars`` caps how much history a setup sees, so cost stays linear in
+    the number of sessions instead of quadratic.
+    """
     out: list[Trade] = []
+    history: list[Bar] = []
     for s in sessions:
-        out.extend(run_session(s, setup, contract, costs, cfg))
+        out.extend(run_session(s, setup, contract, costs, cfg, history=history[-warmup_bars:]))
+        history.extend(s.bars)
     return out
