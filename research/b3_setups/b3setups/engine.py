@@ -29,6 +29,13 @@ from .setups import LONG, SHORT, Entry, Plan, Setup
 
 @dataclass(frozen=True)
 class Trade:
+    """One fill-to-fill leg. A position that scales out produces several.
+
+    ``position_id`` groups the legs of one position. Win rates counted per leg
+    are inflated by scaling out — a partial booked at 1R is almost always a
+    green row — so anything reported as a hit rate must group by this field.
+    """
+
     session: object
     side: int
     entry_ts: datetime
@@ -39,6 +46,7 @@ class Trade:
     gross_cents: int
     cost_cents: int
     reason: str
+    position_id: int = 0
 
     @property
     def net_cents(self) -> int:
@@ -57,6 +65,21 @@ class ExecConfig:
     contracts: int = 1
     no_entry_last_frac: float = 0.10
     max_risk_ticks: int | None = None
+    breakeven_at_r: float | None = None
+    """Move the stop to the entry once price has travelled this many R.
+
+    Turns a trade that went your way and came back into a scratch instead of a
+    full loss. It does not create edge — it moves outcomes from the loss column
+    to the flat column, which raises the hit rate while shaving the winners
+    that would have come back and gone on.
+    """
+
+    partial_at_r: float | None = None
+    """Book part of the position at this many R, and let the rest run."""
+
+    partial_fraction: float = 0.5
+    """Share of the position closed at ``partial_at_r``. Needs contracts >= 2."""
+
     manage_entry_bar: bool = True
     """Whether stop and target are evaluated on the bar the entry filled on.
 
@@ -143,14 +166,18 @@ def run_session(
     entry_ts: datetime | None = None
     stop_price = 0.0
     target_price: float | None = None
+    open_contracts = 0
+    position_id = 0
+    initial_risk = 0.0
+    partial_done = False
+    breakeven_done = False
 
-    def close_position(i: int, price: float, reason: str) -> None:
-        nonlocal side, entry_ts
+    def book(i: int, price: float, reason: str, n: int) -> None:
+        """Book ``n`` contracts out of the open position at ``price``."""
+        nonlocal side, entry_ts, open_contracts
         assert entry_ts is not None
         exit_ticks = contract.to_ticks(price)
         delta = (exit_ticks - entry_ticks) * side
-        gross = delta * contract.tick_cents * cfg.contracts
-        cost = costs.total_round_trip_cents(contract, cfg.contracts)
         trades.append(
             Trade(
                 session=session.day,
@@ -159,14 +186,20 @@ def run_session(
                 exit_ts=bars[i].ts,
                 entry_ticks=entry_ticks,
                 exit_ticks=exit_ticks,
-                contracts=cfg.contracts,
-                gross_cents=gross,
-                cost_cents=cost,
+                contracts=n,
+                gross_cents=delta * contract.tick_cents * n,
+                cost_cents=costs.total_round_trip_cents(contract, n),
                 reason=reason,
+                position_id=position_id,
             )
         )
-        side = 0
-        entry_ts = None
+        open_contracts -= n
+        if open_contracts <= 0:
+            side = 0
+            entry_ts = None
+
+    def close_position(i: int, price: float, reason: str) -> None:
+        book(i, price, reason, open_contracts)
 
     for i in range(n):
         bar = bars[i]
@@ -177,8 +210,39 @@ def run_session(
         if side != 0:
             stop_fill = _fill_protective(bar, side, stop_price)
             target_hit = target_price is not None and _hits_target(bar, side, target_price)
-            if stop_fill is not None:
-                close_position(i, stop_fill, "stop")
+
+            # Scaling out and the breakeven move are only considered once the
+            # stop has been ruled out on this bar: intrabar order is unknown,
+            # and assuming the favourable leg came first is the optimistic
+            # assumption this engine refuses everywhere else.
+            if stop_fill is None and initial_risk > 0:
+                if (
+                    cfg.partial_at_r is not None
+                    and not partial_done
+                    and open_contracts > 1
+                ):
+                    lvl = entry_price + side * cfg.partial_at_r * initial_risk
+                    if _hits_target(bar, side, lvl):
+                        n = max(1, int(round(open_contracts * cfg.partial_fraction)))
+                        n = min(n, open_contracts - 1)
+                        if n > 0:
+                            book(i, lvl, "partial", n)
+                            partial_done = True
+                if (
+                    cfg.breakeven_at_r is not None
+                    and not breakeven_done
+                    and side != 0
+                ):
+                    lvl = entry_price + side * cfg.breakeven_at_r * initial_risk
+                    if _hits_target(bar, side, lvl):
+                        stop_price = entry_price
+                        breakeven_done = True
+
+            if side == 0:
+                closed_this_bar = True
+            elif stop_fill is not None:
+                close_position(i, stop_fill, "breakeven" if breakeven_done and
+                               abs(stop_fill - entry_price) < contract.tick_size / 2 else "stop")
                 closed_this_bar = True
             elif target_hit:
                 assert target_price is not None
@@ -218,6 +282,11 @@ def run_session(
                         entry_ticks = contract.to_ticks(fill)
                         entry_ts = bar.ts
                         stop_price = entry.stop
+                        open_contracts = cfg.contracts
+                        position_id += 1
+                        initial_risk = risk
+                        partial_done = False
+                        breakeven_done = False
                         target_price = (
                             None
                             if cfg.target_r is None

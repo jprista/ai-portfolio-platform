@@ -10,22 +10,35 @@
 //  menor stop que o grafico justifica - abaixo dele o motivo do trade
 //  deixou de existir.
 //
-//  O TETO DO RISCO E O QUE VOCE REGULA para apertar o stop. E aqui esta a
-//  aritmetica que ninguem conta: a ida e volta custa ~11 pontos no WIN,
-//  FIXO. Com alvo de 2,5R, o acerto necessario e (R + 11) / (3,5 x R):
+//  DUAS COISAS QUE MUDARAM DEPOIS DE MEDIR, e que atacam a queixa de
+//  "esta dando mais stop do que gain":
+//
+//  1) O STOP PRECISA COBRIR 1 ATR. Com stop fixo e apertado, 80% dos trades
+//     fechavam na MESMA barra em que abriram - eram estopados pelo ruido de
+//     um unico candle, nao por a direcao estar errada. StopMinimoATR resolve
+//     isso e se adapta sozinho ao tempo grafico e ao dia.
+//
+//  2) ZERO A ZERO EM 1R. Ao andar 1R a favor, o stop vai para a entrada. Nao
+//     cria vantagem nenhuma - move resultado da coluna de perda para a de
+//     empate. Medido: posicoes que nao terminam no vermelho vao de 31% para
+//     44%, e a sangria por posicao cai de -1,64 para -0,06.
+//
+//  MAIS STOP DO QUE GAIN E O DESENHO, NAO O DEFEITO. Com alvo de 2,5R a
+//  geometria entrega no maximo 28,6% de acerto - ou seja, ~71% de stops e o
+//  esperado. Quem quiser taxa de acerto alta precisa baixar o alvo, e ai o
+//  payoff cai junto. Medido nesta mesma base:
+//
+//      alvo 2,5R  ->  acerto 22,6% + 21,9% no zero  ->  payoff 2,51
+//      alvo 1,0R  ->  acerto 53,8%                  ->  payoff 0,64
+//
+//  O segundo "acerta" mais que o dobro e perde 50x mais dinheiro. Taxa de
+//  acerto se compra; o preco e a expectativa.
+//
+//  E a aritmetica do custo continua valendo: a ida e volta custa ~11 pontos
+//  no WIN, FIXO, e o acerto necessario e (R + 11) / (3,5 x R):
 //
 //      risco 250 pts -> precisa 29,8%      risco  50 pts -> precisa 35,0%
-//      risco 100 pts -> precisa 31,7%      risco  40 pts -> precisa 36,5%
-//      risco  70 pts -> precisa 33,2%      risco  20 pts -> precisa 44,4%
-//
-//  A geometria de um alvo 2,5R entrega 28,6% sozinha. Ou seja: apertar o
-//  stop NAO deixa o trade mais barato - deixa a vantagem que voce precisa
-//  ter MAIOR. Abaixo de ~50 pontos de risco no WIN a conta passa a exigir
-//  um acerto que quase ninguem sustenta.
-//
-//  Por isso RiscoMaxTicks tem default 10 (= 50 pontos): e o stop mais
-//  apertado que ainda cabe em 35% de acerto. Aperte mais por sua conta,
-//  sabendo o que passa a ser exigido.
+//      risco 100 pts -> precisa 31,7%      risco  20 pts -> precisa 44,4%
 //======================================================================
 
 input
@@ -56,14 +69,19 @@ input
 
   //--- geometria do trade
   SwingBarras(5);        // quantas barras definem o stop estrutural
-  RiscoMinTicks(2);      // piso: nao aceitar stop absurdamente colado
-  RiscoMaxTicks(10);     // TETO: aperta o stop. 10 ticks = 50 pontos no WIN
+  StopMinimoATR(1.0);    // o stop TEM de cobrir pelo menos 1 ATR - ver nota
+  RiscoMinTicks(2);      // piso absoluto em ticks
+  RiscoMaxTicks(60);     // teto de risco (controle de perda, nao aperto)
   AlvoEmR(2.5);          // alvo = 2,5x o risco
+  ZeroAZeroEmR(1.0);     // ao andar 1R a favor, stop vai para a entrada
   TamanhoTick(5);        // WIN = 5 pontos. WDO = 0.5
   PermitirVenda(1);
 
 var
   mmr, mmm, mml   : Float;
+  zerouRisco      : Boolean;
+  nivelZeroAZero  : Float;
+  riscoInicial    : Float;
   tp, somaPV, somaV, vwap : Float;
   atrAtual, adxAtual, diMais, diMenos, ifrAtual, volMedia : Float;
   sTend, sVwap, sForca, dist, placar : Float;
@@ -165,14 +183,33 @@ begin
     if (lado = 1) then
     begin
       if (Low <= pStop) then emOperacao := 0
-      else if (High >= pAlvo) then emOperacao := 0
-      else if (placar < Limiar / 2) then emOperacao := 0;
+      else
+      begin
+        // zero a zero: so depois de descartar o stop nesta barra. A ordem
+        // dentro da barra e desconhecida, e supor que o lado bom veio antes
+        // e a suposicao otimista que este codigo recusa em todo lugar.
+        if (ZeroAZeroEmR > 0) and (zerouRisco = False) and (High >= nivelZeroAZero) then
+        begin
+          pStop := pEntrada;
+          zerouRisco := True;
+        end;
+        if (High >= pAlvo) then emOperacao := 0
+        else if (placar < Limiar / 2) then emOperacao := 0;
+      end;
     end
     else
     begin
       if (High >= pStop) then emOperacao := 0
-      else if (Low <= pAlvo) then emOperacao := 0
-      else if (placar > -Limiar / 2) then emOperacao := 0;
+      else
+      begin
+        if (ZeroAZeroEmR > 0) and (zerouRisco = False) and (Low <= nivelZeroAZero) then
+        begin
+          pStop := pEntrada;
+          zerouRisco := True;
+        end;
+        if (Low <= pAlvo) then emOperacao := 0
+        else if (placar > -Limiar / 2) then emOperacao := 0;
+      end;
     end;
   end
   else
@@ -200,6 +237,10 @@ begin
       if (cruzouCompra) then
       begin
         pStop := swingMin - TamanhoTick;
+        // o stop precisa cobrir o ruido de UMA barra, senao a oscilacao
+        // normal de um candle tira o trade antes de a ideia dar errado
+        if (pEntrada - pStop < StopMinimoATR * atrAtual) then
+          pStop := pEntrada - (StopMinimoATR * atrAtual);
         risco := pEntrada - pStop;
         riscoTicks := risco / TamanhoTick;
         if (riscoTicks < RiscoMinTicks) then riscoTicks := RiscoMinTicks;
@@ -210,10 +251,15 @@ begin
         lado  := 1;
         emOperacao := 1;
         sinalCompra := True;
+        riscoInicial := risco;
+        zerouRisco := False;
+        nivelZeroAZero := pEntrada + (ZeroAZeroEmR * risco);
       end
       else if (PermitirVenda = 1) then
       begin
         pStop := swingMax + TamanhoTick;
+        if (pStop - pEntrada < StopMinimoATR * atrAtual) then
+          pStop := pEntrada + (StopMinimoATR * atrAtual);
         risco := pStop - pEntrada;
         riscoTicks := risco / TamanhoTick;
         if (riscoTicks < RiscoMinTicks) then riscoTicks := RiscoMinTicks;
@@ -224,6 +270,9 @@ begin
         lado  := -1;
         emOperacao := 1;
         sinalVenda := True;
+        riscoInicial := risco;
+        zerouRisco := False;
+        nivelZeroAZero := pEntrada - (ZeroAZeroEmR * risco);
       end;
     end;
   end;
@@ -246,7 +295,11 @@ begin
   end;
 
   SetPlotColor(1, clWhite);
-  SetPlotColor(2, clRed);
+  // stop amarelo depois que foi para o zero a zero: risco ja retirado da mesa
+  if (emOperacao = 1) and (zerouRisco = True) then
+    SetPlotColor(2, clYellow)
+  else
+    SetPlotColor(2, clRed);
   SetPlotColor(3, clLime);
 
   //--- a barra do sinal fica marcada; enquanto o trade corre, fica suave
@@ -271,6 +324,7 @@ end;
 //
 //  Linha branca        preco de entrada
 //  Linha vermelha      stop
+//  Linha AMARELA       stop ja no zero a zero - risco fora da mesa
 //  Linha verde         alvo (2,5x o risco)
 //
 //  O sinal nasce no FECHAMENTO da barra marcada. A entrada real e na

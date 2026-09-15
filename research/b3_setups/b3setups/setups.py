@@ -561,6 +561,7 @@ class ConfluenciaSinal(Setup):
         swing_lookback: int = 5,
         min_risk_ticks: int = 8,
         max_risk_ticks: int = 40,
+        min_atr: float = 0.0,
         reward_r: float = 2.5,
         cost_points_round_trip: float = 11.0,
         atr_multiple: float = 4.0,
@@ -571,15 +572,17 @@ class ConfluenciaSinal(Setup):
         self.swing_lookback = swing_lookback
         self.min_risk_ticks = min_risk_ticks
         self.max_risk_ticks = max_risk_ticks
+        self.min_atr = min_atr
         self.reward_r = reward_r
         self.cost_points_round_trip = cost_points_round_trip
         self.atr_multiple = atr_multiple
         self.use_cost_gate = use_cost_gate
         self.allow_short = allow_short
         gate = f",gate{atr_multiple:g}x" if use_cost_gate else ",nogate"
+        atrs = f",min{min_atr:g}atr" if min_atr > 0 else ""
         self.name = (
             f"Sinal(lim{threshold:g},sw{swing_lookback},"
-            f"R{min_risk_ticks}-{max_risk_ticks}t,alvo{reward_r:g}R{gate}"
+            f"R{min_risk_ticks}-{max_risk_ticks}t{atrs},alvo{reward_r:g}R{gate}"
             f"{',L' if not allow_short else ''})"
         )
 
@@ -608,13 +611,21 @@ class ConfluenciaSinal(Setup):
             ref = bars[i].close
             window = bars[i - lb + 1 : i + 1]
 
+            # The stop must clear one bar's own noise, otherwise the ordinary
+            # oscillation of a single candle takes the trade out before the
+            # idea has had a chance to be wrong. ATR is the adaptive way to
+            # say "one bar": it rescales with the timeframe and with the day.
+            floor_price = self.min_atr * av if self.min_atr > 0 else 0.0
+
             if s >= self.threshold and prev_s < self.threshold:
                 stop = min(b.low for b in window) - tick
+                stop = min(stop, ref - floor_price) if floor_price else stop
                 stop = self._clamp(ref, stop, tick, LONG)
                 if stop < ref:
                     p.entries[i] = Entry(LONG, None, stop, valid_bars=1)
             elif self.allow_short and s <= -self.threshold and prev_s > -self.threshold:
                 stop = max(b.high for b in window) + tick
+                stop = max(stop, ref + floor_price) if floor_price else stop
                 stop = self._clamp(ref, stop, tick, SHORT)
                 if stop > ref:
                     p.entries[i] = Entry(SHORT, None, stop, valid_bars=1)

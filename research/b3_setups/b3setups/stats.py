@@ -293,3 +293,80 @@ def deflated_sharpe(
         return sr, sr0, 0.5
     z = (sr - sr0) * math.sqrt(n - 1) / math.sqrt(denom)
     return sr, sr0, norm_cdf(z)
+
+
+@dataclass
+class PositionStats:
+    """Outcomes counted per POSITION, not per fill.
+
+    Scaling out splits one decision into several rows, and a partial booked at
+    1R is nearly always green. Counting rows would therefore report a hit rate
+    that rises with the number of partials and says nothing about whether the
+    decisions were good. Everything below groups the legs back together first.
+
+    ``flat`` exists because a breakeven stop creates a third outcome that is
+    neither a win nor a loss, and folding it into either one misreports what
+    the technique actually does.
+    """
+
+    name: str
+    n_positions: int
+    wins: int
+    flats: int
+    losses: int
+    total_cents: int
+    expectancy_cents: float
+    avg_win_cents: float
+    avg_loss_cents: float
+    cost_cents: int
+
+    @property
+    def win_rate(self) -> float:
+        return self.wins / self.n_positions if self.n_positions else 0.0
+
+    @property
+    def green_rate(self) -> float:
+        """Share of positions that did not end red — what a trader feels."""
+        decided = self.n_positions
+        return (self.wins + self.flats) / decided if decided else 0.0
+
+    @property
+    def payoff(self) -> float:
+        return abs(self.avg_win_cents / self.avg_loss_cents) if self.avg_loss_cents else float("inf")
+
+
+def by_position(trades: list[Trade], flat_band_cents: int = 0) -> list[int]:
+    """Net result of each position, in centavos, legs recombined."""
+    groups: dict[tuple, int] = {}
+    order: list[tuple] = []
+    for t in trades:
+        key = (t.session, t.position_id)
+        if key not in groups:
+            groups[key] = 0
+            order.append(key)
+        groups[key] += t.net_cents
+    return [groups[k] for k in order]
+
+
+def summarise_positions(name: str, trades: list[Trade], flat_band_cents: int = 300) -> PositionStats:
+    """Group legs into positions and classify each as win, flat or loss.
+
+    ``flat_band_cents`` is the width around zero that counts as a scratch; a
+    breakeven exit never lands exactly on zero once costs are charged.
+    """
+    nets = by_position(trades)
+    wins = [x for x in nets if x > flat_band_cents]
+    losses = [x for x in nets if x < -flat_band_cents]
+    flats = [x for x in nets if -flat_band_cents <= x <= flat_band_cents]
+    return PositionStats(
+        name=name,
+        n_positions=len(nets),
+        wins=len(wins),
+        flats=len(flats),
+        losses=len(losses),
+        total_cents=sum(nets),
+        expectancy_cents=(sum(nets) / len(nets)) if nets else 0.0,
+        avg_win_cents=(sum(wins) / len(wins)) if wins else 0.0,
+        avg_loss_cents=(sum(losses) / len(losses)) if losses else 0.0,
+        cost_cents=sum(t.cost_cents for t in trades),
+    )
